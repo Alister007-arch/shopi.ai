@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Star, ShoppingCart, MessageSquare, Check, AlertCircle, ShieldCheck, Tag, Info, Layers, Cpu } from 'lucide-react';
+import { X, Star, ShoppingCart, MessageSquare, Check, AlertCircle, ShieldCheck, Tag, Info, Layers, Cpu, Leaf } from 'lucide-react';
 import { API_BASE } from '../config';
 
 export default function ProductDetailModal({
@@ -10,15 +10,19 @@ export default function ProductDetailModal({
   formatPrice = (p, inr) => inr ? `₹${inr.toLocaleString('en-IN')}` : `$${p.toFixed(2)}`,
   currency = 'INR',
 }) {
-  const [quantity, setQuantity] = useState(1);
   const [reviewIntel, setReviewIntel] = useState(null);
-  const [loadingIntel, setLoadingIntel] = useState(true);
+  const [loadingIntel, setLoadingIntel] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+
+  if (!product) return null;
+
+  const inrPrice = product.price_inr || Math.round(product.price * 85);
+  const inStock = product.stock > 0;
+  const attrs = product.attributes || {};
 
   useEffect(() => {
-    if (!product) return;
-    setQuantity(1);
     fetchReviewIntelligence(product.id);
-  }, [product]);
+  }, [product.id]);
 
   const fetchReviewIntelligence = async (productId) => {
     setLoadingIntel(true);
@@ -29,51 +33,41 @@ export default function ProductDetailModal({
         setReviewIntel(data);
       }
     } catch (err) {
-      console.error('Failed to load review intelligence:', err);
+      console.warn('Could not fetch review intelligence:', err);
     } finally {
       setLoadingIntel(false);
     }
   };
 
-  if (!product) return null;
-
-  const inrPrice = product.price_inr || Math.round(product.price * 85);
-  const inStock = (product.stock || 0) > 0;
-  const attrs = product.attributes || {};
-
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.82)',
-        backdropFilter: 'blur(10px)',
-        zIndex: 9999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20,
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      backgroundColor: 'rgba(27, 42, 32, 0.65)',
+      backdropFilter: 'blur(10px)',
+      WebkitBackdropFilter: 'blur(10px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 100,
+      padding: 20,
+    }}>
       <div
-        className="glass-panel"
+        className="animate-slide-up"
         style={{
           width: '100%',
           maxWidth: 860,
           maxHeight: '90vh',
           overflowY: 'auto',
-          backgroundColor: '#070b14',
-          border: '1px solid var(--border-mint)',
-          borderRadius: 20,
-          padding: 28,
+          backgroundColor: '#ffffff',
+          border: '1px solid var(--moss-border)',
+          borderRadius: 'var(--radius-xl)',
+          padding: 34,
           position: 'relative',
           display: 'flex',
           flexDirection: 'column',
           gap: 24,
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 242, 254, 0.15)',
+          boxShadow: 'var(--shadow-lg)',
         }}
       >
         {/* Close Button */}
@@ -81,11 +75,11 @@ export default function ProductDetailModal({
           onClick={onClose}
           style={{
             position: 'absolute',
-            top: 18,
-            right: 18,
-            background: 'rgba(255, 255, 255, 0.08)',
+            top: 20,
+            right: 20,
+            background: 'var(--moss-tint)',
             border: 'none',
-            color: '#94a3b8',
+            color: 'var(--moss-deep)',
             borderRadius: '50%',
             width: 36,
             height: 36,
@@ -93,21 +87,24 @@ export default function ProductDetailModal({
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
+            transition: 'all 0.2s ease',
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = '#e1e9df')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--moss-tint)')}
         >
           <X size={18} />
         </button>
 
         {/* Top Details Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 28 }}>
           {/* Image */}
           <div style={{
-            height: 280,
-            borderRadius: 'var(--radius-md)',
+            height: 300,
+            borderRadius: 'var(--radius-lg)',
             overflow: 'hidden',
             position: 'relative',
-            background: '#000',
-            border: '1px solid var(--border-mint)',
+            background: 'var(--bg-card-muted)',
+            border: '1px solid var(--moss-border)',
           }}>
             <img
               src={product.image_url}
@@ -116,59 +113,59 @@ export default function ProductDetailModal({
             />
             {product.is_organic && (
               <div style={{ position: 'absolute', top: 12, left: 12 }}>
-                <span className="badge-organic">
-                  <ShieldCheck size={12} /> Certified Organic
+                <span className="badge-organic" style={{ background: '#ffffff', boxShadow: 'var(--shadow-sm)' }}>
+                  <Leaf size={12} color="var(--moss-sage)" /> Certified Organic
                 </span>
               </div>
             )}
             <div style={{ position: 'absolute', bottom: 12, left: 12 }}>
-              <span className="badge-demo">Demo Catalog Record</span>
+              <span className="badge-demo" style={{ background: 'rgba(255, 255, 255, 0.92)' }}>Verified Inventory</span>
             </div>
           </div>
 
           {/* Core Info */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="badge-mint">
-                {product.brand || 'ShopAI'} • {product.category}
+              <span className="badge-moss">
+                {product.brand || 'MOSS Essentials'} • {product.category}
               </span>
-              <span style={{ fontSize: '0.75rem', color: inStock ? '#34d399' : '#fbbf24', fontWeight: 700 }}>
+              <span style={{ fontSize: '0.75rem', color: inStock ? 'var(--moss-forest)' : 'var(--clay-terracotta)', fontWeight: 700 }}>
                 {product.stock_status || (inStock ? 'In Stock' : 'Out of Stock')}
               </span>
             </div>
 
-            <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#fff', lineHeight: 1.3 }}>
+            <h2 style={{ fontSize: '1.6rem', fontFamily: 'var(--font-serif)', fontWeight: 600, color: 'var(--moss-deep)', lineHeight: 1.25 }}>
               {product.name}
             </h2>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span className="badge-rating">
-                <Star size={13} fill="#f59e0b" color="#f59e0b" />
-                {product.rating ? product.rating.toFixed(1) : '4.5'}
+                <Star size={13} fill="#d4a359" color="#d4a359" />
+                {product.rating ? product.rating.toFixed(1) : '4.8'}
               </span>
               <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                 ({product.review_count} verified reviews)
               </span>
             </div>
 
-            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
               {product.description}
             </p>
 
             {/* Price block */}
             <div style={{
-              background: 'rgba(0, 242, 254, 0.06)',
-              border: '1px solid var(--border-mint)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '12px 16px',
+              background: 'var(--moss-tint)',
+              border: '1px solid var(--moss-border)',
+              borderRadius: 'var(--radius-md)',
+              padding: '14px 18px',
               marginTop: 'auto',
             }}>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--moss-sage)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Store Verified Price
               </span>
-              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--mint-primary)' }}>
+              <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--moss-deep)', fontFamily: 'var(--font-heading)' }}>
                 ₹{inrPrice.toLocaleString('en-IN')}
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginLeft: 8 }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginLeft: 8, fontWeight: 500 }}>
                   (${product.price.toFixed(2)})
                 </span>
               </div>
@@ -176,32 +173,40 @@ export default function ProductDetailModal({
 
             {/* Quantity & Cart Action */}
             <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                background: 'var(--bg-card-muted)',
+                padding: '4px 8px',
+                borderRadius: 'var(--radius-full)',
+                border: '1px solid var(--moss-border)',
+              }}>
                 <button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   style={{
                     width: 32,
                     height: 32,
-                    borderRadius: 6,
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    border: 'none',
-                    color: '#fff',
+                    borderRadius: '50%',
+                    background: '#ffffff',
+                    border: '1px solid var(--moss-border)',
+                    color: 'var(--moss-deep)',
                     cursor: 'pointer',
                     fontWeight: 700,
                   }}
                 >
                   -
                 </button>
-                <span style={{ minWidth: 24, textAlign: 'center', fontWeight: 800 }}>{quantity}</span>
+                <span style={{ minWidth: 26, textAlign: 'center', fontWeight: 700, color: 'var(--moss-deep)' }}>{quantity}</span>
                 <button
                   onClick={() => setQuantity(quantity + 1)}
                   style={{
                     width: 32,
                     height: 32,
-                    borderRadius: 6,
-                    background: 'rgba(0, 242, 254, 0.2)',
-                    border: 'none',
-                    color: 'var(--mint-primary)',
+                    borderRadius: '50%',
+                    background: '#ffffff',
+                    border: '1px solid var(--moss-border)',
+                    color: 'var(--moss-deep)',
                     cursor: 'pointer',
                     fontWeight: 700,
                   }}
@@ -216,9 +221,9 @@ export default function ProductDetailModal({
                   onClose();
                 }}
                 className="btn-primary"
-                style={{ flex: 1 }}
+                style={{ flex: 1, padding: '12px 20px' }}
               >
-                <ShoppingCart size={16} /> Add to Cart (₹{(inrPrice * quantity).toLocaleString('en-IN')})
+                <ShoppingCart size={16} /> Add to Bag (₹{(inrPrice * quantity).toLocaleString('en-IN')})
               </button>
             </div>
           </div>
@@ -227,30 +232,30 @@ export default function ProductDetailModal({
         {/* Specifications & Attributes Section */}
         {Object.keys(attrs).length > 0 && (
           <div style={{
-            background: 'rgba(0, 0, 0, 0.35)',
-            border: '1px solid var(--border-mint)',
+            background: 'var(--bg-card-muted)',
+            border: '1px solid var(--moss-border)',
             borderRadius: 'var(--radius-md)',
-            padding: 18,
+            padding: 20,
           }}>
-            <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--mint-light)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Cpu size={16} color="var(--mint-primary)" /> Hardware & Product Specifications
+            <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--moss-deep)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Cpu size={16} color="var(--moss-sage)" /> Hardware & Product Specifications
             </h4>
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: 10,
+              gap: 12,
             }}>
               {Object.entries(attrs).map(([k, v]) => (
                 <div key={k} style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  padding: '8px 12px',
-                  borderRadius: 6,
-                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  background: '#ffffff',
+                  padding: '10px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--moss-border)',
                 }}>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     {k.replace('_', ' ')}
                   </span>
-                  <div style={{ fontSize: '0.84rem', fontWeight: 600, color: '#fff', marginTop: 2 }}>
+                  <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--moss-deep)', marginTop: 2 }}>
                     {String(v)}
                   </div>
                 </div>
@@ -262,33 +267,33 @@ export default function ProductDetailModal({
         {/* Review Intelligence Section */}
         {reviewIntel && (
           <div style={{
-            background: 'rgba(0, 242, 254, 0.04)',
-            border: '1px solid var(--border-mint)',
+            background: 'var(--bg-card-muted)',
+            border: '1px solid var(--moss-border)',
             borderRadius: 'var(--radius-md)',
-            padding: 18,
+            padding: 20,
             display: 'flex',
             flexDirection: 'column',
             gap: 12,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--mint-light)' }}>
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--moss-deep)' }}>
                 ⭐ Review Intelligence Summary
               </h4>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
                 Based on {reviewIntel.analyzed_reviews_count || 0} customer reviews
               </span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14 }}>
               {reviewIntel.verified_advantages && reviewIntel.verified_advantages.length > 0 && (
                 <div style={{
-                  background: 'rgba(16, 185, 129, 0.08)',
-                  border: '1px solid rgba(16, 185, 129, 0.25)',
-                  padding: 12,
-                  borderRadius: 8,
+                  background: 'var(--moss-tint)',
+                  border: '1px solid var(--moss-border)',
+                  padding: 14,
+                  borderRadius: 'var(--radius-sm)',
                 }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#34d399' }}>✓ Verified Advantages</span>
-                  <ul style={{ paddingLeft: 18, marginTop: 6, fontSize: '0.8rem', color: '#e2e8f0' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--moss-forest)' }}>✓ Verified Advantages</span>
+                  <ul style={{ paddingLeft: 18, marginTop: 8, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                     {reviewIntel.verified_advantages.map((adv, i) => (
                       <li key={i}>{adv}</li>
                     ))}
@@ -298,13 +303,13 @@ export default function ProductDetailModal({
 
               {reviewIntel.verified_limitations && reviewIntel.verified_limitations.length > 0 && (
                 <div style={{
-                  background: 'rgba(244, 63, 94, 0.08)',
-                  border: '1px solid rgba(244, 63, 94, 0.25)',
-                  padding: 12,
-                  borderRadius: 8,
+                  background: 'var(--clay-subtle)',
+                  border: '1px solid rgba(200, 109, 81, 0.25)',
+                  padding: 14,
+                  borderRadius: 'var(--radius-sm)',
                 }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#fda4af' }}>⚠️ Reported Limitations</span>
-                  <ul style={{ paddingLeft: 18, marginTop: 6, fontSize: '0.8rem', color: '#e2e8f0' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--clay-terracotta)' }}>⚠️ Reported Limitations</span>
+                  <ul style={{ paddingLeft: 18, marginTop: 8, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                     {reviewIntel.verified_limitations.map((lim, i) => (
                       <li key={i}>{lim}</li>
                     ))}

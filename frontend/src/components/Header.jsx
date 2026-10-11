@@ -1,202 +1,245 @@
 import React from 'react';
-import { Sparkles, MessageSquare, Camera, ShoppingBag, Package, ShoppingCart } from 'lucide-react';
+import { Sparkles, MessageSquare, Camera, ShoppingBag, Package, ShoppingCart, Leaf } from 'lucide-react';
 
 export default function Header({ activeTab, setActiveTab, cartCount, openCart, currency, setCurrency }) {
   return (
     <header style={{
-      borderBottom: '1px solid var(--border-mint)',
-      background: 'rgba(4, 7, 13, 0.88)',
-      backdropFilter: 'blur(22px)',
       position: 'sticky',
       top: 0,
       zIndex: 50,
-      padding: '14px 28px',
+      background: 'rgba(247, 246, 242, 0.92)',
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)',
+      borderBottom: '1px solid var(--moss-border)',
+      transition: 'all 0.25s ease',
     }}>
+      {/* Top Editorial Announcement Bar */}
       <div style={{
-        maxWidth: 1300,
+        background: 'var(--moss-deep)',
+        color: '#f7f6f2',
+        fontSize: '0.72rem',
+        fontWeight: 600,
+        letterSpacing: '0.12em',
+        textTransform: 'uppercase',
+        padding: '7px 20px',
+        textAlign: 'center',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 12,
+      }}>
+        <span>🌿 Spring Collection 2026</span>
+        <span>•</span>
+        <span>77 Certified Pure Essentials</span>
+        <span>•</span>
+        <span>Instant 1-Command Autonomous AI Checkout</span>
+      </div>
+
+      <div style={{
+        maxWidth: 1360,
         margin: '0 auto',
+        padding: '16px 28px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: 16,
       }}>
-        {/* Brand Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* MOSS Signature Brand Logo (Orix Creative Dribbble Aesthetic) */}
+        <div
+          onClick={() => setActiveTab('catalog')}
+          style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }}
+        >
+          {/* Rounded Square Emblem with Offset Dot */}
           <div style={{
-            width: 44,
-            height: 44,
-            borderRadius: 'var(--radius-md)',
-            background: 'var(--mint-gradient)',
+            width: 42,
+            height: 42,
+            borderRadius: '12px',
+            background: 'var(--moss-deep)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 20px var(--mint-glow)',
+            position: 'relative',
+            boxShadow: '0 4px 14px rgba(27, 42, 32, 0.16)',
           }}>
-            <Sparkles size={24} color="#04070d" />
+            {/* Minimalist offset dot symbol matching Orix Creative's brandmark */}
+            <div style={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              background: '#ffffff',
+              transform: 'translate(4px, -4px)',
+            }} />
           </div>
+
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
               <span style={{
                 fontFamily: 'var(--font-heading)',
-                fontSize: '1.5rem',
+                fontSize: '1.45rem',
                 fontWeight: 800,
-                letterSpacing: '-0.03em',
-                background: 'linear-gradient(135deg, #ffffff 40%, var(--mint-primary) 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
+                letterSpacing: '0.2em',
+                color: 'var(--moss-deep)',
+                textTransform: 'uppercase',
               }}>
-                ShopAI
+                MOSS
               </span>
               <span style={{
-                fontSize: '0.68rem',
+                fontSize: '0.66rem',
                 fontWeight: 700,
+                color: 'var(--moss-sage)',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                background: 'var(--moss-tint)',
                 padding: '2px 8px',
                 borderRadius: 'var(--radius-full)',
-                background: 'rgba(0, 242, 254, 0.15)',
-                color: 'var(--mint-cyan)',
-                border: '1px solid var(--border-mint)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
+                border: '1px solid var(--moss-border)',
               }}>
-                V3 Agentic
+                AI Living
               </span>
             </div>
-            <p style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-              Autonomous Multi-Category Shopping Agent
+            <p style={{
+              fontSize: '0.74rem',
+              color: 'var(--text-muted)',
+              letterSpacing: '0.02em',
+              fontWeight: 500,
+            }}>
+              Mindful Essentials & Autonomous Concierge
             </p>
           </div>
         </div>
 
-        {/* Navigation Tabs */}
+        {/* Minimalist Navigation Pills */}
         <nav style={{
           display: 'flex',
           alignItems: 'center',
           gap: 6,
-          background: 'rgba(10, 16, 29, 0.7)',
+          background: 'rgba(255, 255, 255, 0.85)',
           padding: 5,
           borderRadius: 'var(--radius-full)',
-          border: '1px solid var(--border-mint)',
+          border: '1px solid var(--moss-border)',
+          boxShadow: 'var(--shadow-sm)',
         }}>
-          <button
-            className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
-            onClick={() => setActiveTab('chat')}
-          >
-            <MessageSquare size={16} />
-            <span>AI Chat Agent</span>
-          </button>
-          
-          <button
-            className={`tab-btn ${activeTab === 'vision' ? 'active' : ''}`}
-            onClick={() => setActiveTab('vision')}
-          >
-            <Camera size={16} />
-            <span>Visual Search</span>
-          </button>
-          
           <button
             className={`tab-btn ${activeTab === 'catalog' ? 'active' : ''}`}
             onClick={() => setActiveTab('catalog')}
           >
-            <ShoppingBag size={16} />
-            <span>Multi-Category Store</span>
+            <ShoppingBag size={15} />
+            <span>Collection</span>
           </button>
-          
+
+          <button
+            className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
+            onClick={() => setActiveTab('chat')}
+          >
+            <MessageSquare size={15} />
+            <span>AI Concierge</span>
+          </button>
+
+          <button
+            className={`tab-btn ${activeTab === 'vision' ? 'active' : ''}`}
+            onClick={() => setActiveTab('vision')}
+          >
+            <Camera size={15} />
+            <span>Visual Lens</span>
+          </button>
+
           <button
             className={`tab-btn ${activeTab === 'orders' ? 'active' : ''}`}
             onClick={() => setActiveTab('orders')}
           >
-            <Package size={16} />
-            <span>My Orders</span>
+            <Package size={15} />
+            <span>Orders</span>
           </button>
         </nav>
 
-        {/* Right actions: Online status & Cart */}
+        {/* Right Actions: Currency & Shopping Bag */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {/* Active Status Pill */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 6,
-            fontSize: '0.75rem',
-            color: 'var(--mint-light)',
-            background: 'rgba(0, 242, 254, 0.08)',
-            padding: '6px 12px',
+            gap: 7,
+            fontSize: '0.74rem',
+            color: 'var(--moss-deep)',
+            background: 'var(--moss-tint)',
+            padding: '7px 14px',
             borderRadius: 'var(--radius-full)',
-            border: '1px solid var(--border-mint)',
+            border: '1px solid var(--moss-border)',
+            fontWeight: 600,
           }}>
             <span style={{
-              width: 8,
-              height: 8,
+              width: 7,
+              height: 7,
               borderRadius: '50%',
-              background: 'var(--mint-primary)',
-              boxShadow: '0 0 10px var(--mint-primary)',
+              background: 'var(--moss-sage)',
+              boxShadow: '0 0 8px var(--moss-sage)',
             }} />
-            <span style={{ fontWeight: 600 }}>Active Agent Core</span>
+            <span>Ready to Order</span>
           </div>
 
-          {/* Currency Toggle */}
+          {/* Currency Switcher */}
           <button
             onClick={() => setCurrency(currency === 'USD' ? 'INR' : 'USD')}
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 5,
-              padding: '7px 13px',
+              padding: '8px 14px',
               borderRadius: 'var(--radius-full)',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid var(--border-subtle)',
-              color: '#fff',
+              background: '#ffffff',
+              border: '1px solid var(--moss-border)',
+              color: 'var(--text-primary)',
               fontSize: '0.82rem',
               fontWeight: 700,
               cursor: 'pointer',
               transition: 'all 0.2s ease',
+              boxShadow: 'var(--shadow-sm)',
             }}
             title="Switch Currency between USD and INR"
           >
-            <span style={{ color: 'var(--mint-cyan)' }}>{currency === 'USD' ? '$' : '₹'}</span>
+            <span style={{ color: 'var(--moss-sage)' }}>{currency === 'USD' ? '$' : '₹'}</span>
             <span>{currency}</span>
           </button>
 
-          {/* Cart Icon */}
+          {/* Luxury Bag Button */}
           <button
             onClick={openCart}
             style={{
               position: 'relative',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              width: 44,
-              height: 44,
-              borderRadius: 'var(--radius-md)',
-              background: 'rgba(0, 242, 254, 0.08)',
-              border: '1px solid var(--border-mint)',
-              color: 'var(--mint-light)',
+              gap: 8,
+              padding: '9px 18px',
+              borderRadius: 'var(--radius-full)',
+              background: 'var(--moss-deep)',
+              border: 'none',
+              color: '#ffffff',
               cursor: 'pointer',
-              transition: 'all 0.2s ease',
+              transition: 'all 0.25s ease',
+              boxShadow: 'var(--shadow-moss)',
+              fontWeight: 600,
+              fontSize: '0.86rem',
             }}
-            title="View Shopping Cart"
+            title="Open Shopping Bag"
           >
-            <ShoppingCart size={20} />
-            {cartCount > 0 && (
-              <span style={{
-                position: 'absolute',
-                top: -4,
-                right: -4,
-                background: 'var(--mint-primary)',
-                color: '#04070d',
-                fontSize: '0.72rem',
-                fontWeight: 800,
-                width: 19,
-                height: 19,
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 2px 8px var(--mint-glow)',
-              }}>
-                {cartCount}
-              </span>
-            )}
+            <ShoppingCart size={17} />
+            <span>Bag</span>
+            <span style={{
+              background: '#ffffff',
+              color: 'var(--moss-deep)',
+              fontSize: '0.72rem',
+              fontWeight: 800,
+              minWidth: 20,
+              height: 20,
+              borderRadius: 'var(--radius-full)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '0 6px',
+            }}>
+              {cartCount}
+            </span>
           </button>
         </div>
       </div>

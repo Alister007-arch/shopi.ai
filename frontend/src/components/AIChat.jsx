@@ -29,7 +29,7 @@ export default function AIChat({
     {
       id: 'welcome',
       role: 'assistant',
-      text: "👋 Welcome to **ShopAI V3**! I am your autonomous, multi-category AI Shopping Agent.\n\n⚡ **Instant 1-Command Ordering**: Just tell me what you want to order (e.g. *'Order 1 kg oats'*, *'Order 1 litre cow milk'*, or *'Rolex watch order kar do'*), and I will directly place the order in a single command with real tracking!\n\nTry asking:\n- *'Order 1 litre cow milk'*\n- *'bread aur eggs order kar do'*\n- *'iPhone 16 Pro Max order kar do'*\n- *'Rolex watch order kar do'*\n- *'Order laptop #38'*\n- *'Find a laptop under ₹60,000 for programming'*\n- *'Order 1 kg oats, 500 g honey, and two litres of milk within ₹800'*",
+      text: "🌿 Welcome to **MOSS Concierge**! I am your autonomous, mindful shopping assistant.\n\n⚡ **Instant 1-Command Ordering**: Tell me what you wish to order (e.g. *'Order 1 kg oats and pure honey'*, *'Order 1 litre cow milk'*, or *'Find organic tea under ₹500'*), and I will directly place the order with verified farm tracking.\n\nTry asking:\n- *'Order 1 litre cow milk'*\n- *'Order 1 kg oats and pure honey within ₹600'*\n- *'Rolex watch order kar do'*\n- *'Find cold-pressed organic oils'*\n- *'Compare laptop #38 and #39'*",
       product_cards: [],
       placed_order: null,
       cart_action: null,
@@ -303,38 +303,41 @@ export default function AIChat({
       )}
 
       {/* Top Banner */}
-      <div className="glass-panel" style={{
-        padding: '12px 20px',
+      <div style={{
+        padding: '14px 22px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: 10,
-        background: 'rgba(10, 16, 29, 0.85)',
+        gap: 12,
+        background: 'var(--bg-card)',
+        borderRadius: 'var(--radius-lg)',
+        border: '1px solid var(--moss-border)',
+        boxShadow: 'var(--shadow-sm)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{
-            width: 32,
-            height: 32,
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--mint-gradient)',
+            width: 36,
+            height: 36,
+            borderRadius: '10px',
+            background: 'var(--moss-deep)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#04070d',
+            color: '#ffffff',
           }}>
-            <Bot size={18} />
+            <Bot size={19} />
           </div>
           <div>
-            <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff' }}>ShopAI Autonomous Assistant</span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--mint-cyan)', marginLeft: 8 }}>Multi-Category & One-Command Ordering</span>
+            <span style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--moss-deep)' }}>MOSS Concierge</span>
+            <span style={{ fontSize: '0.74rem', color: 'var(--moss-sage)', marginLeft: 8, fontWeight: 600 }}>Autonomous 1-Command Ordering</span>
           </div>
         </div>
 
         <button
           onClick={clearChat}
           className="btn-ghost"
-          style={{ padding: '5px 10px', fontSize: '0.75rem' }}
+          style={{ padding: '6px 12px', fontSize: '0.76rem' }}
           title="Reset conversation"
         >
           <RotateCcw size={13} style={{ marginRight: 4 }} /> Clear Chat
@@ -347,7 +350,7 @@ export default function AIChat({
         overflowY: 'auto',
         display: 'flex',
         flexDirection: 'column',
-        gap: 18,
+        gap: 20,
         padding: '10px 4px',
       }}>
         {messages.map((msg) => (
@@ -364,15 +367,15 @@ export default function AIChat({
             <div style={{
               width: 36,
               height: 36,
-              borderRadius: 'var(--radius-sm)',
+              borderRadius: '10px',
               background: msg.role === 'user'
-                ? 'rgba(0, 242, 254, 0.2)'
-                : 'var(--mint-gradient)',
-              border: msg.role === 'user' ? '1px solid var(--border-mint)' : 'none',
+                ? 'var(--moss-tint)'
+                : 'var(--moss-deep)',
+              border: msg.role === 'user' ? '1px solid var(--moss-border)' : 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: msg.role === 'user' ? 'var(--mint-light)' : '#04070d',
+              color: msg.role === 'user' ? 'var(--moss-deep)' : '#ffffff',
               flexShrink: 0,
             }}>
               {msg.role === 'user' ? <User size={18} /> : <Bot size={18} />}
@@ -388,19 +391,26 @@ export default function AIChat({
             }}>
               <div style={{
                 background: msg.role === 'user'
-                  ? 'rgba(0, 242, 254, 0.12)'
-                  : 'rgba(10, 16, 29, 0.85)',
+                  ? 'var(--moss-deep)'
+                  : 'var(--bg-card)',
                 border: msg.role === 'user'
-                  ? '1px solid var(--border-mint)'
-                  : '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: 'var(--radius-md)',
-                padding: '14px 18px',
-                color: '#f8fafc',
+                  ? 'none'
+                  : '1px solid var(--moss-border)',
+                borderRadius: msg.role === 'user'
+                  ? '18px 18px 4px 18px'
+                  : '18px 18px 18px 4px',
+                padding: '14px 20px',
+                color: msg.role === 'user' ? '#ffffff' : 'var(--text-primary)',
                 fontSize: '0.92rem',
-                boxShadow: msg.role === 'user' ? '0 4px 14px var(--mint-glow)' : 'var(--shadow-sm)',
+                boxShadow: 'var(--shadow-sm)',
               }}>
                 {renderFormattedText(msg.text)}
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 8, textAlign: 'right' }}>
+                <div style={{
+                  fontSize: '0.68rem',
+                  color: msg.role === 'user' ? 'rgba(255, 255, 255, 0.65)' : 'var(--text-muted)',
+                  marginTop: 8,
+                  textAlign: 'right',
+                }}>
                   {msg.timestamp}
                 </div>
               </div>
@@ -659,17 +669,19 @@ export default function AIChat({
       </div>
 
       {/* Input Bar */}
-      <div className="glass-panel" style={{
-        padding: '8px 12px',
+      <div style={{
+        padding: '8px 14px',
         display: 'flex',
         alignItems: 'center',
-        gap: 10,
-        background: 'rgba(10, 16, 29, 0.95)',
-        border: '1px solid var(--border-mint)',
+        gap: 12,
+        background: '#ffffff',
+        border: '1px solid var(--moss-border)',
+        borderRadius: 'var(--radius-full)',
+        boxShadow: 'var(--shadow-md)',
       }}>
         <textarea
           rows={1}
-          placeholder="Ask ShopAI: 'Find a laptop under ₹60,000 for programming' or 'Order oats, honey, milk under ₹800'..."
+          placeholder="Inquire with Moss Concierge: 'Order 1 kg oats and pure honey' or 'Find organic tea under ₹500'..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -677,11 +689,11 @@ export default function AIChat({
             flex: 1,
             background: 'transparent',
             border: 'none',
-            color: '#fff',
+            color: 'var(--text-primary)',
             fontSize: '0.92rem',
             resize: 'none',
             outline: 'none',
-            padding: '8px 6px',
+            padding: '10px 10px',
             fontFamily: 'inherit',
           }}
         />
@@ -691,7 +703,8 @@ export default function AIChat({
           disabled={!input.trim() || isLoading}
           className="btn-primary"
           style={{
-            padding: '10px 18px',
+            padding: '10px 20px',
+            borderRadius: 'var(--radius-full)',
             opacity: !input.trim() || isLoading ? 0.4 : 1,
             cursor: !input.trim() || isLoading ? 'not-allowed' : 'pointer',
           }}

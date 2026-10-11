@@ -4,10 +4,10 @@ import AIChat from './components/AIChat';
 import ImageSearch from './components/ImageSearch';
 import Catalog from './components/Catalog';
 import CartOrdersDrawer from './components/CartOrdersDrawer';
-import { CheckCircle2, ShoppingCart, ShieldCheck, Database, Sparkles, Heart } from 'lucide-react';
+import { CheckCircle2, ShoppingCart, ShieldCheck, Database, Sparkles, Heart, Leaf } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('catalog'); // Start on 'catalog' for rich dashboard experience, switchable to 'chat' | 'vision' | 'orders'
+  const [activeTab, setActiveTab] = useState('catalog'); // Start on 'catalog' for rich editorial experience
   const [cartItems, setCartItems] = useState([]);
   const [currency, setCurrency] = useState('INR'); // Default to Indian Rupees 'INR'
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -15,7 +15,10 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState(null);
 
   // Currency Formatter
-  const formatPrice = (usdAmount) => {
+  const formatPrice = (usdAmount, inrAmount) => {
+    if (inrAmount) {
+      return `₹${inrAmount.toLocaleString('en-IN')}`;
+    }
     const val = typeof usdAmount === 'number' ? usdAmount : parseFloat(usdAmount) || 0;
     if (currency === 'INR') {
       const inr = Math.round(val * 85);
@@ -37,7 +40,7 @@ export default function App() {
       return [...prev, { ...product, quantity: qty }];
     });
 
-    showToast(`🛒 Added ${qty}x "${product.name}" to your cart!`);
+    showToast(`🛒 Added ${qty}x "${product.name}" to your bag!`);
   };
 
   const handleUpdateQty = (productId, newQty) => {
@@ -52,7 +55,7 @@ export default function App() {
 
   const handleRemoveItem = (productId) => {
     setCartItems((prev) => prev.filter((item) => item.id !== productId));
-    showToast(`Item removed from cart.`);
+    showToast(`Item removed from shopping bag.`);
   };
 
   const handleClearCart = () => {
@@ -79,7 +82,7 @@ export default function App() {
   const totalCartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#090d16' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-primary)' }}>
       {/* Toast Notification */}
       {toastMessage && (
         <div style={{
@@ -87,24 +90,25 @@ export default function App() {
           top: 24,
           right: 24,
           zIndex: 9999,
-          background: 'rgba(16, 185, 129, 0.95)',
-          color: '#fff',
-          padding: '12px 20px',
-          borderRadius: 'var(--radius-md)',
+          background: 'var(--moss-deep)',
+          color: '#ffffff',
+          padding: '12px 22px',
+          borderRadius: 'var(--radius-full)',
           boxShadow: 'var(--shadow-lg)',
           display: 'flex',
           alignItems: 'center',
           gap: 10,
           fontWeight: 600,
-          fontSize: '0.9rem',
+          fontSize: '0.88rem',
           animation: 'slideUp 0.3s ease',
+          border: '1px solid rgba(255, 255, 255, 0.15)',
         }}>
-          <CheckCircle2 size={18} />
+          <CheckCircle2 size={18} color="var(--moss-sage-light)" />
           <span>{toastMessage}</span>
         </div>
       )}
 
-      {/* Global Header */}
+      {/* MOSS Header */}
       <Header
         activeTab={activeTab}
         setActiveTab={(tab) => {
@@ -125,7 +129,7 @@ export default function App() {
       />
 
       {/* Main App Content */}
-      <main style={{ flex: 1, padding: '24px 20px', maxWidth: 1350, margin: '0 auto', width: '100%' }}>
+      <main style={{ flex: 1, padding: '32px 20px', maxWidth: 1360, margin: '0 auto', width: '100%' }}>
         {activeTab === 'chat' && (
           <AIChat
             onAddToCart={handleAddToCart}
@@ -163,22 +167,22 @@ export default function App() {
         )}
       </main>
 
-      {/* Professional Footer with Catalog & Integrity Disclosure */}
+      {/* MOSS Editorial Footer */}
       <footer
         style={{
-          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-          background: 'rgba(10, 14, 23, 0.95)',
-          padding: '32px 24px 24px 24px',
+          borderTop: '1px solid var(--moss-border)',
+          background: 'var(--bg-card)',
+          padding: '48px 24px 32px 24px',
           marginTop: 'auto',
         }}
       >
         <div
           style={{
-            maxWidth: 1350,
+            maxWidth: 1360,
             margin: '0 auto',
             display: 'flex',
             flexDirection: 'column',
-            gap: 20,
+            gap: 32,
           }}
         >
           <div
@@ -187,52 +191,69 @@ export default function App() {
               justifyContent: 'space-between',
               alignItems: 'flex-start',
               flexWrap: 'wrap',
-              gap: 24,
+              gap: 32,
             }}
           >
-            <div style={{ maxWidth: 480 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#f8fafc' }}>
-                  Shop<span style={{ color: '#10b981' }}>AI</span>
+            <div style={{ maxWidth: 460 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <div style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '10px',
+                  background: 'var(--moss-deep)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <div style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: '#ffffff',
+                    transform: 'translate(3px, -3px)',
+                  }} />
+                </div>
+                <span style={{
+                  fontFamily: 'var(--font-heading)',
+                  fontSize: '1.25rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.18em',
+                  color: 'var(--moss-deep)',
+                  textTransform: 'uppercase',
+                }}>
+                  MOSS
                 </span>
-                <span
-                  style={{
-                    background: 'rgba(16, 185, 129, 0.15)',
-                    color: '#34d399',
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                    padding: '2px 8px',
-                    borderRadius: 9999,
-                  }}
-                >
-                  Verified Catalog Agent
+                <span className="badge-moss">
+                  Mindful Living
                 </span>
               </div>
-              <p style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: 1.5 }}>
-                An evidence-based shopping agent and visual search engine. Every recommendation,
-                budget filter, and comparison is directly computed from local SQLite records
-                without fabricated claims or hallucinated review sentiment.
+              <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                An elevated e-commerce experience curated for mindful rituals and sustainable living. Powered by autonomous AI multi-turn conversational agents with zero hallucination guarantee.
               </p>
             </div>
 
-            <div style={{ display: 'flex', gap: 36, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 48, flexWrap: 'wrap' }}>
               <div>
-                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#cbd5e1', marginBottom: 8 }}>Navigation</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.82rem', color: '#94a3b8' }}>
-                  <span style={{ cursor: 'pointer' }} onClick={() => setActiveTab('catalog')}>Product Catalog</span>
-                  <span style={{ cursor: 'pointer' }} onClick={() => setActiveTab('chat')}>AI Assistant</span>
-                  <span style={{ cursor: 'pointer' }} onClick={() => setActiveTab('vision')}>Visual Search</span>
-                  <span style={{ cursor: 'pointer' }} onClick={() => { setDrawerInitialTab('orders'); setIsDrawerOpen(true); }}>Past Orders</span>
+                <h4 style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--moss-deep)', marginBottom: 12, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  Collections
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  <span style={{ cursor: 'pointer' }} onClick={() => setActiveTab('catalog')}>All Essentials</span>
+                  <span style={{ cursor: 'pointer' }} onClick={() => setActiveTab('catalog')}>Organic Produce</span>
+                  <span style={{ cursor: 'pointer' }} onClick={() => setActiveTab('catalog')}>Luxury Collection</span>
+                  <span style={{ cursor: 'pointer' }} onClick={() => setActiveTab('vision')}>Visual Lens</span>
                 </div>
               </div>
 
               <div>
-                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#cbd5e1', marginBottom: 8 }}>Data & Architecture</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.82rem', color: '#94a3b8' }}>
-                  <span>SQLite <code style={{ color: '#10b981' }}>shopai.db</code> (32 Items)</span>
-                  <span>FastAPI + LangGraph Reasoning</span>
-                  <span>Deterministic Offline Fallback</span>
-                  <span>Currency: USD / INR (1 USD ≈ ₹85)</span>
+                <h4 style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--moss-deep)', marginBottom: 12, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  Intelligence
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  <span style={{ cursor: 'pointer' }} onClick={() => setActiveTab('chat')}>Autonomous Concierge</span>
+                  <span>1-Command Atomic Order</span>
+                  <span>77 Verified Artifacts</span>
+                  <span>Grounded SQLite Engine</span>
                 </div>
               </div>
             </div>
@@ -240,19 +261,19 @@ export default function App() {
 
           <div
             style={{
-              borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-              paddingTop: 16,
+              borderTop: '1px solid var(--moss-border)',
+              paddingTop: 20,
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
               flexWrap: 'wrap',
               gap: 12,
-              fontSize: '0.75rem',
-              color: '#64748b',
+              fontSize: '0.78rem',
+              color: 'var(--text-muted)',
             }}
           >
-            <span>© 2026 ShopAI Prototype • Grounded in Real Data • No Hallucinations</span>
-            <span>Running on Windows 11</span>
+            <span>© 2026 MOSS Living & ShopAI • Inspired by Minimalist Organic Living</span>
+            <span>Verified 77 Pure Items • Autonomous Order Dispatch</span>
           </div>
         </div>
       </footer>

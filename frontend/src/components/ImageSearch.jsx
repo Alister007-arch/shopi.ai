@@ -201,20 +201,20 @@ export default function ImageSearch({
           gap: 6,
           padding: '4px 14px',
           borderRadius: 'var(--radius-full)',
-          background: 'rgba(0, 242, 254, 0.12)',
-          border: '1px solid var(--border-mint)',
-          color: 'var(--mint-cyan)',
+          background: 'var(--moss-tint)',
+          border: '1px solid var(--moss-border)',
+          color: 'var(--moss-deep)',
           fontSize: '0.8rem',
           fontWeight: 700,
           marginBottom: 10,
         }}>
-          <Camera size={14} /> Multi-Category Visual Product Recognition
+          <Camera size={14} color="var(--moss-sage)" /> MOSS Lens • Multimodal Visual Discovery
         </div>
-        <h2 style={{ fontSize: '1.85rem', fontWeight: 800, marginBottom: 8, color: '#fff' }}>
-          Search Catalog with a Photo
+        <h2 style={{ fontSize: '2rem', fontFamily: 'var(--font-serif)', fontWeight: 600, marginBottom: 8, color: 'var(--moss-deep)' }}>
+          Discover Essentials with a Photograph
         </h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
-          Upload any photo (laptops, food, fresh produce, headphones). Our vision model detects object category, validates retail viability, and matches verified inventory in <code style={{ color: 'var(--mint-primary)' }}>shopai.db</code>.
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.94rem' }}>
+          Upload any photo of fresh produce, pantry jars, tech or apparel. Our visual neural model identifies the item, verifies organic authenticity, and retrieves verified catalog stock.
         </p>
       </div>
 
@@ -222,12 +222,21 @@ export default function ImageSearch({
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-        gap: 20,
+        gap: 24,
       }}>
         {/* Card 1: Upload Zone & Sample Selectors */}
-        <div className="glass-panel" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, color: '#fff' }}>
-            <Upload size={18} color="var(--mint-cyan)" />
+        <div style={{
+          background: 'var(--bg-card)',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--moss-border)',
+          padding: 26,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+          boxShadow: 'var(--shadow-sm)',
+        }}>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--moss-deep)' }}>
+            <Upload size={18} color="var(--moss-sage)" />
             1. Upload or Select Product Image
           </h3>
 
@@ -236,18 +245,18 @@ export default function ImageSearch({
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             style={{
-              border: `2px dashed ${isDragging ? 'var(--mint-primary)' : 'var(--border-mint)'}`,
+              border: `2px dashed ${isDragging ? 'var(--moss-deep)' : 'var(--moss-border-strong)'}`,
               borderRadius: 'var(--radius-md)',
-              padding: '30px 20px',
+              padding: '32px 20px',
               textAlign: 'center',
               cursor: 'pointer',
-              background: isDragging ? 'rgba(0, 242, 254, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+              background: isDragging ? 'var(--moss-tint)' : 'var(--bg-card-muted)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 12,
-              transition: 'all 0.2s ease',
+              transition: 'all 0.25s ease',
             }}
           >
             <input
@@ -262,23 +271,23 @@ export default function ImageSearch({
               style={{ display: 'none' }}
             />
             <div style={{
-              width: 52,
-              height: 52,
+              width: 54,
+              height: 54,
               borderRadius: '50%',
-              background: 'rgba(0, 242, 254, 0.12)',
+              background: 'var(--moss-tint)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'var(--mint-primary)',
+              color: 'var(--moss-deep)',
             }}>
               <Camera size={26} />
             </div>
             <div>
-              <p style={{ fontWeight: 700, fontSize: '0.95rem', color: '#fff' }}>
-                {isDragging ? 'Drop photo to upload' : 'Click to browse or drop any product photo'}
+              <p style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--moss-deep)' }}>
+                Drag & Drop or Click to Browse
               </p>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                Supports JPEG, PNG, WebP up to 5MB
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                Supports JPEG, PNG, WebP (Max 5 MB)
               </p>
             </div>
           </label>

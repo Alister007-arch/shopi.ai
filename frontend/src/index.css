@@ -1,48 +1,77 @@
 /* ==========================================================================
-   ShopAI V3 — Design System & Global Styles (Black & Mint Blue Theme)
+   MOSS — Design System & Global Styles
+   Inspired by "Moss E-commerce Website" by Orix Creative on Dribbble
+   Minimalist, organic luxury, Japanese-Scandinavian earthy refinement.
    ========================================================================== */
 
 :root {
-  --bg-primary: #04070d;
-  --bg-secondary: #090e1a;
-  --bg-card: rgba(10, 16, 29, 0.85);
-  --bg-card-hover: rgba(14, 22, 38, 0.92);
-  --bg-input: #0c1424;
-  
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-focus: rgba(0, 242, 254, 0.55);
-  --border-mint: rgba(34, 211, 238, 0.28);
-  
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  
-  /* Mint Blue Signature Palette */
-  --mint-primary: #00f2fe;
-  --mint-cyan: #22d3ee;
-  --mint-teal: #14b8a6;
-  --mint-light: #a5f3fc;
-  --mint-glow: rgba(0, 242, 254, 0.28);
-  --mint-bg: rgba(0, 242, 254, 0.08);
-  --mint-gradient: linear-gradient(135deg, #00f2fe 0%, #06b6d4 100%);
-  --mint-gradient-soft: linear-gradient(135deg, rgba(0, 242, 254, 0.15) 0%, rgba(20, 184, 166, 0.08) 100%);
-  
-  --accent-amber: #f59e0b;
-  --accent-rose: #f43f5e;
-  --accent-purple: #818cf8;
+  /* Signature MOSS Palette (Warm Organic Linen & Deep Forest Moss) */
+  --bg-primary: #f7f6f2;
+  --bg-secondary: #f0eee6;
+  --bg-card: #ffffff;
+  --bg-card-hover: #ffffff;
+  --bg-card-muted: #f3f1e9;
+  --bg-input: #ffffff;
 
-  --font-heading: 'Outfit', sans-serif;
+  --moss-deep: #1b2a20;
+  --moss-forest: #243527;
+  --moss-olive: #344837;
+  --moss-sage: #5e7a62;
+  --moss-sage-light: #8fa892;
+  --moss-sage-subtle: rgba(94, 122, 98, 0.12);
+  --moss-tint: #edf2eb;
+  --moss-border: rgba(27, 42, 32, 0.08);
+  --moss-border-strong: rgba(27, 42, 32, 0.18);
+  --moss-glow: rgba(27, 42, 32, 0.12);
+
+  --clay-terracotta: #c86d51;
+  --clay-subtle: rgba(200, 109, 81, 0.12);
+  --gold-warm: #d4a359;
+
+  --text-primary: #182019;
+  --text-secondary: #4a544c;
+  --text-muted: #7a867c;
+  --text-inverse: #f7f6f2;
+
+  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-heading: 'Plus Jakarta Sans', -apple-system, sans-serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 
-  --radius-sm: 8px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
   --radius-full: 9999px;
-  
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.65);
-  --shadow-mint-glow: 0 0 30px var(--mint-glow);
+
+  --shadow-sm: 0 2px 8px rgba(27, 42, 32, 0.04);
+  --shadow-md: 0 8px 24px rgba(27, 42, 32, 0.06);
+  --shadow-lg: 0 16px 40px rgba(27, 42, 32, 0.08);
+  --shadow-moss: 0 10px 28px rgba(27, 42, 32, 0.18);
+}
+
+/* Optional Dark Moss Mode for users who prefer nighttime browsing */
+[data-theme="dark"] {
+  --bg-primary: #121913;
+  --bg-secondary: #172118;
+  --bg-card: #1c271e;
+  --bg-card-hover: #222f25;
+  --bg-card-muted: #18221a;
+  --bg-input: #172118;
+
+  --moss-deep: #2e4433;
+  --moss-forest: #3c5441;
+  --moss-sage: #9cb59f;
+  --moss-sage-light: #b4ccb7;
+  --moss-sage-subtle: rgba(156, 181, 159, 0.14);
+  --moss-tint: #1e2a20;
+  --moss-border: rgba(255, 255, 255, 0.08);
+  --moss-border-strong: rgba(156, 181, 159, 0.35);
+
+  --text-primary: #f6f7f4;
+  --text-secondary: #b3bfb5;
+  --text-muted: #79877b;
+  --text-inverse: #121913;
 }
 
 * {
@@ -54,55 +83,58 @@
 body {
   font-family: var(--font-body);
   background: var(--bg-primary);
-  background-image: 
-    radial-gradient(circle at 12% 10%, rgba(0, 242, 254, 0.1) 0%, transparent 45%),
-    radial-gradient(circle at 88% 90%, rgba(20, 184, 166, 0.08) 0%, transparent 45%),
-    radial-gradient(circle at 50% 50%, rgba(10, 16, 29, 0.7) 0%, transparent 100%);
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
-  line-height: 1.5;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  background-image: 
+    radial-gradient(circle at 10% 8%, rgba(94, 122, 98, 0.06) 0%, transparent 40%),
+    radial-gradient(circle at 90% 92%, rgba(200, 109, 81, 0.04) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(240, 238, 230, 0.5) 0%, transparent 100%);
+  background-attachment: fixed;
 }
 
-/* Custom Scrollbar */
+/* Custom Minimalist Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(4, 7, 13, 0.7);
+  background: var(--bg-secondary);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(34, 211, 238, 0.25);
+  background: var(--moss-sage-light);
   border-radius: var(--radius-full);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--mint-cyan);
+  background: var(--moss-deep);
 }
 
-/* Typography Helpers */
+/* Typography Hierarchy */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-primary);
 }
 
-/* Glassmorphism Card Container */
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+/* Glassmorphism & Surface Cards */
 .glass-panel {
   background: var(--bg-card);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: 1px solid var(--border-mint);
+  border: 1px solid var(--moss-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-panel:hover {
-  border-color: rgba(0, 242, 254, 0.45);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 242, 254, 0.12);
+  border-color: var(--moss-border-strong);
+  box-shadow: var(--shadow-md);
 }
 
 /* Navigation Tabs */
@@ -110,29 +142,28 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 20px;
+  padding: 8px 18px;
   border-radius: var(--radius-full);
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-secondary);
   font-family: var(--font-heading);
-  font-size: 0.92rem;
+  font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
 }
 
 .tab-btn:hover {
-  color: var(--mint-light);
-  background: rgba(0, 242, 254, 0.06);
+  color: var(--text-primary);
+  background: var(--moss-tint);
 }
 
 .tab-btn.active {
-  background: var(--mint-gradient);
-  color: #04070d;
-  border-color: var(--mint-primary);
-  font-weight: 700;
-  box-shadow: 0 4px 18px var(--mint-glow);
+  background: var(--moss-deep);
+  color: #ffffff;
+  border-color: var(--moss-deep);
+  box-shadow: 0 4px 14px rgba(27, 42, 32, 0.2);
 }
 
 /* Buttons */
@@ -141,22 +172,23 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: var(--mint-gradient);
-  color: #04070d;
+  background: var(--moss-deep);
+  color: #ffffff;
   font-family: var(--font-heading);
-  font-weight: 700;
-  font-size: 0.92rem;
-  padding: 10px 20px;
-  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 0.88rem;
+  padding: 11px 22px;
+  border-radius: var(--radius-full);
   border: none;
   cursor: pointer;
-  box-shadow: 0 4px 14px var(--mint-glow);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-moss);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-primary:hover {
+  background: var(--moss-forest);
   transform: translateY(-2px);
-  box-shadow: 0 6px 22px rgba(0, 242, 254, 0.45);
+  box-shadow: 0 8px 24px rgba(27, 42, 32, 0.25);
 }
 
 .btn-primary:active {
@@ -168,22 +200,21 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: rgba(0, 242, 254, 0.08);
-  color: var(--mint-light);
-  border: 1px solid var(--border-mint);
+  background: var(--moss-tint);
+  color: var(--moss-deep);
+  border: 1px solid var(--moss-border);
   font-family: var(--font-heading);
   font-weight: 600;
   font-size: 0.88rem;
   padding: 10px 18px;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-full);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .btn-secondary:hover {
-  background: rgba(0, 242, 254, 0.16);
-  border-color: var(--mint-cyan);
-  color: #fff;
+  background: #e1e9df;
+  border-color: var(--moss-sage);
   transform: translateY(-1px);
 }
 
@@ -193,34 +224,35 @@ h1, h2, h3, h4, h5, h6 {
   gap: 6px;
   background: transparent;
   color: var(--text-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 8px 14px;
-  font-size: 0.85rem;
-  font-weight: 500;
+  border: 1px solid var(--moss-border);
+  border-radius: var(--radius-full);
+  padding: 7px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.18);
+  background: var(--moss-tint);
+  color: var(--text-primary);
+  border-color: var(--moss-border-strong);
 }
 
 /* Badges */
-.badge-mint {
+.badge-moss {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 10px;
+  padding: 4px 10px;
   border-radius: var(--radius-full);
-  background: rgba(0, 242, 254, 0.12);
-  border: 1px solid rgba(0, 242, 254, 0.3);
-  color: var(--mint-cyan);
+  background: var(--moss-sage-subtle);
+  border: 1px solid rgba(94, 122, 98, 0.25);
+  color: var(--moss-sage);
   font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .badge-organic {
@@ -229,66 +261,81 @@ h1, h2, h3, h4, h5, h6 {
   gap: 4px;
   padding: 3px 9px;
   border-radius: var(--radius-full);
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.35);
-  color: #34d399;
-  font-size: 0.72rem;
+  background: rgba(94, 122, 98, 0.12);
+  border: 1px solid rgba(94, 122, 98, 0.28);
+  color: var(--moss-forest);
+  font-size: 0.7rem;
   font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .badge-rating {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
+  padding: 3px 9px;
   border-radius: var(--radius-full);
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  color: #fbbf24;
-  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(27, 42, 32, 0.08);
+  color: var(--text-primary);
+  font-size: 0.72rem;
   font-weight: 700;
+}
+
+.badge-clay {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: var(--clay-subtle);
+  border: 1px solid rgba(200, 109, 81, 0.3);
+  color: var(--clay-terracotta);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .badge-demo {
   display: inline-flex;
   align-items: center;
-  padding: 2px 7px;
-  border-radius: 4px;
-  background: rgba(148, 163, 184, 0.1);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  color: #94a3b8;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(122, 134, 124, 0.12);
+  border: 1px solid rgba(122, 134, 124, 0.2);
+  color: var(--text-muted);
   font-size: 0.68rem;
   font-weight: 600;
 }
 
-/* Category Pills */
+/* Category Pills (Dribbble Signature Pill Bar) */
 .category-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 8px 18px;
   border-radius: var(--radius-full);
-  background: rgba(10, 16, 29, 0.7);
-  border: 1px solid var(--border-mint);
+  background: var(--bg-card);
+  border: 1px solid var(--moss-border);
   color: var(--text-secondary);
   font-size: 0.84rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
   white-space: nowrap;
 }
 
 .category-pill:hover {
-  border-color: var(--mint-primary);
-  color: #fff;
-  background: rgba(0, 242, 254, 0.08);
+  border-color: var(--moss-border-strong);
+  color: var(--text-primary);
+  background: var(--moss-tint);
 }
 
 .category-pill.active {
-  background: rgba(0, 242, 254, 0.18);
-  border-color: var(--mint-primary);
-  color: var(--mint-light);
-  box-shadow: 0 0 15px rgba(0, 242, 254, 0.25);
+  background: var(--moss-deep);
+  border-color: var(--moss-deep);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(27, 42, 32, 0.18);
 }
 
 /* Animations */
@@ -304,20 +351,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .animate-slide-up {
-  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes pulseGlow {
-  0%, 100% {
-    box-shadow: 0 0 15px rgba(0, 242, 254, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 30px rgba(0, 242, 254, 0.45);
-  }
-}
-
-.pulse-mint {
-  animation: pulseGlow 2.5s infinite ease-in-out;
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Typing dot loader */
@@ -326,7 +360,7 @@ h1, h2, h3, h4, h5, h6 {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--mint-primary);
+  background: var(--moss-sage);
   animation: typingDot 1.4s infinite ease-in-out both;
 }
 
