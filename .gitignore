@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+
+# Environment Variables & Secrets (CRITICAL: Never commit API keys)
+.env
+.env.*
+!.env.example
+
+# Node / Frontend
+frontend/node_modules/
+node_modules/
+frontend/.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Scratch & Temporary
+scratch/
+.tempmediaStorage/
+*.tmp
+
+# Operating System files
+.DS_Store
+Thumbs.db
+desktop.ini
