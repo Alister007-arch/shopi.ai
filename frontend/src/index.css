@@ -5,33 +5,30 @@
    ========================================================================== */
 
 :root {
-  /* Signature MOSS Palette (Warm Organic Linen & Deep Forest Moss) */
-  --bg-primary: #f7f6f2;
+  /* Wireframe MOSS Authentic Palette */
+  --bg-primary: #f8f7f4;
   --bg-secondary: #f0eee6;
   --bg-card: #ffffff;
-  --bg-card-hover: #ffffff;
-  --bg-card-muted: #f3f1e9;
+  --bg-card-muted: #f4f3ec;
   --bg-input: #ffffff;
 
-  --moss-deep: #1b2a20;
-  --moss-forest: #243527;
-  --moss-olive: #344837;
+  --moss-banner: #2b4736;
+  --moss-deep: #1c3024;
+  --moss-darker: #142017;
   --moss-sage: #5e7a62;
   --moss-sage-light: #8fa892;
-  --moss-sage-subtle: rgba(94, 122, 98, 0.12);
-  --moss-tint: #edf2eb;
-  --moss-border: rgba(27, 42, 32, 0.08);
-  --moss-border-strong: rgba(27, 42, 32, 0.18);
-  --moss-glow: rgba(27, 42, 32, 0.12);
+  --moss-tint: #edf4ee;
+  --moss-border: #e6e5df;
+  --moss-border-strong: #c8c7bf;
 
+  --accent-yellow: #f5e6cc;
+  --accent-blue: #e4eff0;
+  --accent-green: #233d2c;
   --clay-terracotta: #c86d51;
-  --clay-subtle: rgba(200, 109, 81, 0.12);
-  --gold-warm: #d4a359;
 
   --text-primary: #182019;
-  --text-secondary: #4a544c;
-  --text-muted: #7a867c;
-  --text-inverse: #f7f6f2;
+  --text-secondary: #576259;
+  --text-muted: #828e84;
 
   --font-serif: 'Playfair Display', Georgia, serif;
   --font-heading: 'Plus Jakarta Sans', -apple-system, sans-serif;

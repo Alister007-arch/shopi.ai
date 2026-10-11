@@ -4,15 +4,18 @@ import AIChat from './components/AIChat';
 import ImageSearch from './components/ImageSearch';
 import Catalog from './components/Catalog';
 import CartOrdersDrawer from './components/CartOrdersDrawer';
-import { CheckCircle2, ShoppingCart, ShieldCheck, Database, Sparkles, Heart, Leaf } from 'lucide-react';
+import { CheckCircle2, ShoppingBag, ShieldCheck, Database, Sparkles, Heart, Leaf } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('catalog'); // Start on 'catalog' for rich editorial experience
+  const [activeTab, setActiveTab] = useState('catalog');
   const [cartItems, setCartItems] = useState([]);
-  const [currency, setCurrency] = useState('INR'); // Default to Indian Rupees 'INR'
+  const [currency, setCurrency] = useState('INR');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [drawerInitialTab, setDrawerInitialTab] = useState('cart');
   const [toastMessage, setToastMessage] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [pinCode, setPinCode] = useState('560034');
 
   // Currency Formatter
   const formatPrice = (usdAmount, inrAmount) => {
@@ -108,7 +111,7 @@ export default function App() {
         </div>
       )}
 
-      {/* MOSS Header */}
+      {/* Header (Exact PDF Wireframe Page 1) */}
       <Header
         activeTab={activeTab}
         setActiveTab={(tab) => {
@@ -124,12 +127,16 @@ export default function App() {
           setDrawerInitialTab('cart');
           setIsDrawerOpen(true);
         }}
-        currency={currency}
-        setCurrency={setCurrency}
+        selectedCategory={selectedCategory}
+        onSelectCategory={setSelectedCategory}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        pinCode={pinCode}
+        onChangePin={setPinCode}
       />
 
-      {/* Main App Content */}
-      <main style={{ flex: 1, padding: '32px 20px', maxWidth: 1360, margin: '0 auto', width: '100%' }}>
+      {/* Main Content Area */}
+      <main style={{ flex: 1, padding: '28px 24px', maxWidth: 1380, margin: '0 auto', width: '100%' }}>
         {activeTab === 'chat' && (
           <AIChat
             onAddToCart={handleAddToCart}
@@ -163,118 +170,123 @@ export default function App() {
             onAskInChat={handleAskInChat}
             formatPrice={formatPrice}
             currency={currency}
+            searchQuery={searchQuery}
+            selectedCategory={selectedCategory}
+            onSelectCategory={setSelectedCategory}
           />
         )}
       </main>
 
-      {/* MOSS Editorial Footer */}
-      <footer
-        style={{
-          borderTop: '1px solid var(--moss-border)',
-          background: 'var(--bg-card)',
-          padding: '48px 24px 32px 24px',
-          marginTop: 'auto',
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 1360,
-            margin: '0 auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 32,
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-              flexWrap: 'wrap',
-              gap: 32,
-            }}
-          >
-            <div style={{ maxWidth: 460 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                <div style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '10px',
-                  background: 'var(--moss-deep)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                  <div style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: '50%',
-                    background: '#ffffff',
-                    transform: 'translate(3px, -3px)',
-                  }} />
-                </div>
-                <span style={{
-                  fontFamily: 'var(--font-heading)',
-                  fontSize: '1.25rem',
-                  fontWeight: 800,
-                  letterSpacing: '0.18em',
-                  color: 'var(--moss-deep)',
-                  textTransform: 'uppercase',
-                }}>
-                  MOSS
-                </span>
-                <span className="badge-moss">
-                  Mindful Living
-                </span>
-              </div>
-              <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                An elevated e-commerce experience curated for mindful rituals and sustainable living. Powered by autonomous AI multi-turn conversational agents with zero hallucination guarantee.
-              </p>
+      {/* Footer (Exact PDF Wireframe Page 3 & Page 5) */}
+      <footer style={{
+        background: '#142017',
+        color: '#ffffff',
+        padding: '56px 24px 36px 24px',
+        marginTop: 'auto',
+      }}>
+        <div style={{
+          maxWidth: 1380,
+          margin: '0 auto',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: 40,
+        }}>
+          {/* Col 1: MOSS Brand */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
+              <div style={{ width: 13, height: 13, borderRadius: '50%', background: '#ffffff' }} />
+              <span style={{
+                fontFamily: 'var(--font-heading)',
+                fontSize: '1.45rem',
+                fontWeight: 800,
+                letterSpacing: '0.14em',
+                color: '#ffffff',
+              }}>
+                MOSS
+              </span>
             </div>
+            <p style={{
+              fontSize: '0.88rem',
+              color: 'rgba(255, 255, 255, 0.72)',
+              lineHeight: 1.6,
+              maxWidth: 320,
+            }}>
+              Mindful essentials & autonomous concierge. Certified pure pantry and lifestyle goods with single-command checkout.
+            </p>
+          </div>
 
-            <div style={{ display: 'flex', gap: 48, flexWrap: 'wrap' }}>
-              <div>
-                <h4 style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--moss-deep)', marginBottom: 12, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                  Collections
-                </h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  <span style={{ cursor: 'pointer' }} onClick={() => setActiveTab('catalog')}>All Essentials</span>
-                  <span style={{ cursor: 'pointer' }} onClick={() => setActiveTab('catalog')}>Organic Produce</span>
-                  <span style={{ cursor: 'pointer' }} onClick={() => setActiveTab('catalog')}>Luxury Collection</span>
-                  <span style={{ cursor: 'pointer' }} onClick={() => setActiveTab('vision')}>Visual Lens</span>
-                </div>
-              </div>
-
-              <div>
-                <h4 style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--moss-deep)', marginBottom: 12, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                  Intelligence
-                </h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  <span style={{ cursor: 'pointer' }} onClick={() => setActiveTab('chat')}>Autonomous Concierge</span>
-                  <span>1-Command Atomic Order</span>
-                  <span>77 Verified Artifacts</span>
-                  <span>Grounded SQLite Engine</span>
-                </div>
-              </div>
+          {/* Col 2: Shop Links */}
+          <div>
+            <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#ffffff', marginBottom: 16 }}>
+              Shop
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.75)' }}>
+              <span style={{ cursor: 'pointer' }} onClick={() => { setSelectedCategory('honey'); setActiveTab('catalog'); }}>Pure Honey</span>
+              <span style={{ cursor: 'pointer' }} onClick={() => { setSelectedCategory('grains'); setActiveTab('catalog'); }}>Grains & Oats</span>
+              <span style={{ cursor: 'pointer' }} onClick={() => { setSelectedCategory('oil'); setActiveTab('catalog'); }}>Cold-Pressed Oils</span>
+              <span style={{ cursor: 'pointer' }} onClick={() => { setSelectedCategory('all'); setActiveTab('catalog'); }}>Offers</span>
             </div>
           </div>
 
-          <div
-            style={{
-              borderTop: '1px solid var(--moss-border)',
-              paddingTop: 20,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: 12,
-              fontSize: '0.78rem',
-              color: 'var(--text-muted)',
-            }}
-          >
-            <span>© 2026 MOSS Living & ShopAI • Inspired by Minimalist Organic Living</span>
-            <span>Verified 77 Pure Items • Autonomous Order Dispatch</span>
+          {/* Col 3: Help Links */}
+          <div>
+            <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#ffffff', marginBottom: 16 }}>
+              Help
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.75)' }}>
+              <span style={{ cursor: 'pointer' }} onClick={() => { setDrawerInitialTab('orders'); setIsDrawerOpen(true); }}>Track order</span>
+              <span>Returns & refunds</span>
+              <span style={{ cursor: 'pointer' }} onClick={() => setActiveTab('chat')}>Contact us</span>
+              <span>FAQs</span>
+            </div>
           </div>
+
+          {/* Col 4: Pay Securely */}
+          <div>
+            <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#ffffff', marginBottom: 16 }}>
+              Pay securely
+            </h4>
+            <p style={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.75)', lineHeight: 1.5, marginBottom: 14 }}>
+              UPI · Cards · Net banking · COD
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{
+                fontSize: '0.74rem',
+                background: 'rgba(255, 255, 255, 0.1)',
+                padding: '4px 10px',
+                borderRadius: 'var(--radius-sm)',
+                color: 'rgba(255, 255, 255, 0.85)',
+              }}>
+                100% Encrypted UPI
+              </span>
+              <span style={{
+                fontSize: '0.74rem',
+                background: 'rgba(255, 255, 255, 0.1)',
+                padding: '4px 10px',
+                borderRadius: 'var(--radius-sm)',
+                color: 'rgba(255, 255, 255, 0.85)',
+              }}>
+                Eco-Fleet Dispatch
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div style={{
+          maxWidth: 1380,
+          margin: '36px auto 0 auto',
+          paddingTop: 20,
+          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12,
+          fontSize: '0.78rem',
+          color: 'rgba(255, 255, 255, 0.5)',
+        }}>
+          <span>© 2026 MOSS Living & ShopAI. All rights reserved.</span>
+          <span>Designed with Mindful Living & Autonomous AI</span>
         </div>
       </footer>
 

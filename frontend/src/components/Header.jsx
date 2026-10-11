@@ -1,248 +1,401 @@
-import React from 'react';
-import { Sparkles, MessageSquare, Camera, ShoppingBag, Package, ShoppingCart, Leaf } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, MapPin, Heart, ShoppingBag, Package, User, ChevronDown, Sparkles } from 'lucide-react';
 
-export default function Header({ activeTab, setActiveTab, cartCount, openCart, currency, setCurrency }) {
+const CATEGORIES_NAV = [
+  { id: 'all', label: 'All Collection' },
+  { id: 'daily-essentials', label: 'Daily Essentials' },
+  { id: 'luxury', label: 'Luxury Collection' },
+  { id: 'fruits-vegetables', label: 'Fresh Produce' },
+  { id: 'honey', label: 'Pure Honey' },
+  { id: 'grains', label: 'Grains & Oats' },
+  { id: 'oil', label: 'Cold-Pressed Oils' },
+  { id: 'nuts', label: 'Raw Nuts' },
+  { id: 'offers', label: 'Offers' },
+  { id: 'concierge', label: 'AI Concierge' },
+];
+
+export default function Header({
+  activeTab,
+  setActiveTab,
+  cartCount,
+  openCart,
+  selectedCategory,
+  onSelectCategory,
+  searchQuery,
+  onSearchChange,
+  pinCode = '560034',
+  onChangePin,
+  wishlistCount = 0,
+}) {
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [tempPin, setTempPin] = useState(pinCode);
+  const [selectedSearchCat, setSelectedSearchCat] = useState('All');
+
+  const handlePinSubmit = (e) => {
+    e.preventDefault();
+    if (tempPin.trim()) {
+      if (onChangePin) onChangePin(tempPin.trim());
+      setShowPinModal(false);
+    }
+  };
+
   return (
     <header style={{
       position: 'sticky',
       top: 0,
       zIndex: 50,
-      background: 'rgba(247, 246, 242, 0.92)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
+      background: '#ffffff',
       borderBottom: '1px solid var(--moss-border)',
-      transition: 'all 0.25s ease',
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
     }}>
-      {/* Top Editorial Announcement Bar */}
+      {/* 1. Top Announcement Strip (Exact PDF Wireframe) */}
       <div style={{
-        background: 'var(--moss-deep)',
-        color: '#f7f6f2',
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        letterSpacing: '0.12em',
-        textTransform: 'uppercase',
+        background: 'var(--moss-banner)',
+        color: '#f8f7f4',
+        fontSize: '0.78rem',
+        fontWeight: 500,
         padding: '7px 20px',
         textAlign: 'center',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 12,
+        letterSpacing: '0.02em',
       }}>
-        <span>🌿 Spring Collection 2026</span>
-        <span>•</span>
-        <span>77 Certified Pure Essentials</span>
-        <span>•</span>
-        <span>Instant 1-Command Autonomous AI Checkout</span>
+        Spring Collection 2026 · Free delivery above ₹499 · UPI, cards & COD
       </div>
 
+      {/* 2. Main Navigation Bar */}
       <div style={{
-        maxWidth: 1360,
+        maxWidth: 1380,
         margin: '0 auto',
-        padding: '16px 28px',
+        padding: '14px 24px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        gap: 20,
         flexWrap: 'wrap',
-        gap: 16,
       }}>
-        {/* MOSS Signature Brand Logo (Orix Creative Dribbble Aesthetic) */}
-        <div
-          onClick={() => setActiveTab('catalog')}
-          style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer' }}
-        >
-          {/* Rounded Square Emblem with Offset Dot */}
-          <div style={{
-            width: 42,
-            height: 42,
-            borderRadius: '12px',
-            background: 'var(--moss-deep)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative',
-            boxShadow: '0 4px 14px rgba(27, 42, 32, 0.16)',
-          }}>
-            {/* Minimalist offset dot symbol matching Orix Creative's brandmark */}
+        {/* Left: Brand Logo & Delivery PIN */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          {/* Logo: ● MOSS */}
+          <div
+            onClick={() => setActiveTab('catalog')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 9,
+              cursor: 'pointer',
+              userSelect: 'none',
+            }}
+          >
             <div style={{
-              width: 10,
-              height: 10,
+              width: 14,
+              height: 14,
               borderRadius: '50%',
-              background: '#ffffff',
-              transform: 'translate(4px, -4px)',
+              background: 'var(--moss-deep)',
             }} />
+            <span style={{
+              fontFamily: 'var(--font-heading)',
+              fontSize: '1.5rem',
+              fontWeight: 800,
+              letterSpacing: '0.12em',
+              color: 'var(--moss-deep)',
+            }}>
+              MOSS
+            </span>
           </div>
 
-          <div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-              <span style={{
-                fontFamily: 'var(--font-heading)',
-                fontSize: '1.45rem',
-                fontWeight: 800,
-                letterSpacing: '0.2em',
-                color: 'var(--moss-deep)',
-                textTransform: 'uppercase',
-              }}>
-                MOSS
-              </span>
-              <span style={{
-                fontSize: '0.66rem',
-                fontWeight: 700,
-                color: 'var(--moss-sage)',
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                background: 'var(--moss-tint)',
-                padding: '2px 8px',
-                borderRadius: 'var(--radius-full)',
-                border: '1px solid var(--moss-border)',
-              }}>
-                AI Living
-              </span>
-            </div>
-            <p style={{
-              fontSize: '0.74rem',
-              color: 'var(--text-muted)',
-              letterSpacing: '0.02em',
-              fontWeight: 500,
-            }}>
-              Mindful Essentials & Autonomous Concierge
-            </p>
-          </div>
+          {/* Deliver to PIN */}
+          <button
+            onClick={() => setShowPinModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--text-secondary)',
+              fontSize: '0.82rem',
+              padding: '6px 10px',
+              borderRadius: 'var(--radius-sm)',
+              transition: 'background 0.2s',
+            }}
+            title="Click to change delivery PIN code"
+          >
+            <MapPin size={15} color="var(--moss-sage)" />
+            <span>Deliver to <strong style={{ color: 'var(--text-primary)' }}>[{pinCode}]</strong></span>
+          </button>
         </div>
 
-        {/* Minimalist Navigation Pills */}
-        <nav style={{
+        {/* Center: Search Bar with Category Dropdown */}
+        <div style={{
+          flex: '1 1 420px',
+          maxWidth: 620,
           display: 'flex',
           alignItems: 'center',
-          gap: 6,
-          background: 'rgba(255, 255, 255, 0.85)',
-          padding: 5,
+          background: 'var(--bg-secondary)',
           borderRadius: 'var(--radius-full)',
           border: '1px solid var(--moss-border)',
-          boxShadow: 'var(--shadow-sm)',
+          padding: '3px 4px 3px 14px',
+          transition: 'all 0.2s',
         }}>
+          {/* Category Dropdown */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            fontSize: '0.82rem',
+            color: 'var(--text-secondary)',
+            fontWeight: 600,
+            paddingRight: 12,
+            borderRight: '1px solid var(--moss-border)',
+            cursor: 'pointer',
+          }}>
+            <span>{selectedSearchCat}</span>
+            <ChevronDown size={13} />
+          </div>
+
+          {/* Search Input */}
+          <input
+            type="text"
+            placeholder="Search organic honey, oats, milk, cold-pressed oil, matcha"
+            value={searchQuery || ''}
+            onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
+            style={{
+              flex: 1,
+              border: 'none',
+              background: 'transparent',
+              padding: '8px 12px',
+              fontSize: '0.84rem',
+              color: 'var(--text-primary)',
+              outline: 'none',
+              fontFamily: 'var(--font-body)',
+            }}
+          />
+
+          {/* Dark Search Button */}
           <button
-            className={`tab-btn ${activeTab === 'catalog' ? 'active' : ''}`}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              background: 'var(--moss-deep)',
+              border: 'none',
+              color: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'transform 0.2s',
+            }}
             onClick={() => setActiveTab('catalog')}
           >
-            <ShoppingBag size={15} />
-            <span>Collection</span>
+            <Search size={16} />
           </button>
+        </div>
 
+        {/* Right: Orders, Account, Wishlist & Bag */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <button
-            className={`tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
-            onClick={() => setActiveTab('chat')}
-          >
-            <MessageSquare size={15} />
-            <span>AI Concierge</span>
-          </button>
-
-          <button
-            className={`tab-btn ${activeTab === 'vision' ? 'active' : ''}`}
-            onClick={() => setActiveTab('vision')}
-          >
-            <Camera size={15} />
-            <span>Visual Lens</span>
-          </button>
-
-          <button
-            className={`tab-btn ${activeTab === 'orders' ? 'active' : ''}`}
             onClick={() => setActiveTab('orders')}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-secondary)',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+            }}
           >
             <Package size={15} />
             <span>Orders</span>
           </button>
-        </nav>
 
-        {/* Right Actions: Currency & Shopping Bag */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Active Status Pill */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 7,
-            fontSize: '0.74rem',
-            color: 'var(--moss-deep)',
-            background: 'var(--moss-tint)',
-            padding: '7px 14px',
-            borderRadius: 'var(--radius-full)',
-            border: '1px solid var(--moss-border)',
-            fontWeight: 600,
-          }}>
-            <span style={{
-              width: 7,
-              height: 7,
-              borderRadius: '50%',
-              background: 'var(--moss-sage)',
-              boxShadow: '0 0 8px var(--moss-sage)',
-            }} />
-            <span>Ready to Order</span>
-          </div>
-
-          {/* Currency Switcher */}
           <button
-            onClick={() => setCurrency(currency === 'USD' ? 'INR' : 'USD')}
+            onClick={() => setActiveTab('chat')}
             style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-secondary)',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: 5,
-              padding: '8px 14px',
-              borderRadius: 'var(--radius-full)',
-              background: '#ffffff',
-              border: '1px solid var(--moss-border)',
-              color: 'var(--text-primary)',
-              fontSize: '0.82rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: 'var(--shadow-sm)',
             }}
-            title="Switch Currency between USD and INR"
           >
-            <span style={{ color: 'var(--moss-sage)' }}>{currency === 'USD' ? '$' : '₹'}</span>
-            <span>{currency}</span>
+            <User size={15} />
+            <span>Account</span>
           </button>
 
-          {/* Luxury Bag Button */}
+          <button
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              padding: 4,
+              display: 'flex',
+              alignItems: 'center',
+              position: 'relative',
+            }}
+            title="Wishlist"
+          >
+            <Heart size={19} />
+            {wishlistCount > 0 && (
+              <span style={{
+                position: 'absolute',
+                top: -2,
+                right: -2,
+                background: 'var(--clay-terracotta)',
+                color: '#fff',
+                fontSize: '0.65rem',
+                width: 15,
+                height: 15,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+              }}>
+                {wishlistCount}
+              </span>
+            )}
+          </button>
+
+          {/* Bag · 0 Button (Exact Wireframe) */}
           <button
             onClick={openCart}
             style={{
-              position: 'relative',
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              padding: '9px 18px',
+              padding: '9px 20px',
               borderRadius: 'var(--radius-full)',
               background: 'var(--moss-deep)',
               border: 'none',
               color: '#ffffff',
               cursor: 'pointer',
-              transition: 'all 0.25s ease',
-              boxShadow: 'var(--shadow-moss)',
-              fontWeight: 600,
-              fontSize: '0.86rem',
+              fontWeight: 700,
+              fontSize: '0.88rem',
+              boxShadow: '0 4px 12px rgba(28, 48, 36, 0.2)',
+              transition: 'transform 0.2s',
             }}
-            title="Open Shopping Bag"
           >
-            <ShoppingCart size={17} />
-            <span>Bag</span>
-            <span style={{
-              background: '#ffffff',
-              color: 'var(--moss-deep)',
-              fontSize: '0.72rem',
-              fontWeight: 800,
-              minWidth: 20,
-              height: 20,
-              borderRadius: 'var(--radius-full)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '0 6px',
-            }}>
-              {cartCount}
-            </span>
+            <ShoppingBag size={15} />
+            <span>Bag · {cartCount || 0}</span>
           </button>
         </div>
       </div>
+
+      {/* 3. Category Navigation Sub-Bar (Exact PDF Wireframe) */}
+      <nav style={{
+        borderTop: '1px solid var(--moss-border)',
+        padding: '8px 24px',
+        maxWidth: 1380,
+        margin: '0 auto',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 22,
+        overflowX: 'auto',
+        scrollbarWidth: 'none',
+      }}>
+        {CATEGORIES_NAV.map((cat) => {
+          const isActive = (selectedCategory === cat.id) || (cat.id === 'all' && (!selectedCategory || selectedCategory === 'all'));
+          return (
+            <button
+              key={cat.id}
+              onClick={() => {
+                if (cat.id === 'concierge') {
+                  setActiveTab('chat');
+                } else {
+                  setActiveTab('catalog');
+                  if (onSelectCategory) onSelectCategory(cat.id);
+                }
+              }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '0.82rem',
+                fontWeight: isActive ? 700 : 500,
+                color: isActive ? 'var(--moss-deep)' : 'var(--text-secondary)',
+                borderBottom: isActive ? '2px solid var(--moss-deep)' : '2px solid transparent',
+                paddingBottom: 4,
+                whiteSpace: 'nowrap',
+                transition: 'all 0.2s',
+              }}
+            >
+              {cat.label}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* PIN Code Modal */}
+      {showPinModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}>
+          <form
+            onSubmit={handlePinSubmit}
+            style={{
+              background: '#ffffff',
+              padding: 24,
+              borderRadius: 'var(--radius-lg)',
+              maxWidth: 360,
+              width: '90%',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+              boxShadow: 'var(--shadow-lg)',
+            }}
+          >
+            <h4 style={{ color: 'var(--moss-deep)', fontSize: '1.1rem' }}>Enter Delivery PIN Code</h4>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+              Check delivery speed and eco-fleet availability for your location.
+            </p>
+            <input
+              type="text"
+              value={tempPin}
+              onChange={(e) => setTempPin(e.target.value)}
+              placeholder="e.g. 560034"
+              maxLength={6}
+              style={{
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--moss-border)',
+                fontSize: '1rem',
+                fontWeight: 700,
+                outline: 'none',
+              }}
+            />
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+              <button
+                type="button"
+                onClick={() => setShowPinModal(false)}
+                className="btn-ghost"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn-primary"
+              >
+                Save Location
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </header>
   );
 }
