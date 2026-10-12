@@ -9,6 +9,7 @@ import AdminDashboard from './components/AdminDashboard';
 import CustomerProfile from './components/CustomerProfile';
 import HelpModal from './components/HelpModal';
 import PoliciesView from './components/PoliciesView';
+import BackendStatusIndicator from './components/BackendStatusIndicator';
 import { authApi } from './api/auth';
 import { BRAND } from './config/brand';
 import { CheckCircle2, ShoppingBag, ShieldCheck, Database, Sparkles, Heart, Leaf } from 'lucide-react';
@@ -1039,6 +1040,9 @@ export default function App() {
           />
         </div>
       )}
+
+      {/* Dev-Only Backend Health Monitor */}
+      <BackendStatusIndicator />
     </div>
   );
 }

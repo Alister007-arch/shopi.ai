@@ -89,11 +89,32 @@ class ApiClient {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.message || errorData.detail || `Request failed with status ${response.status}`;
+        let errorMessage = errorData.message || errorData.detail;
+        if (typeof errorMessage === 'object' && errorMessage !== null) {
+          errorMessage = errorMessage.message || errorMessage.detail || JSON.stringify(errorMessage);
+        }
+        if (!errorMessage) {
+          errorMessage = `Request failed with status ${response.status}`;
+        }
+
         const error = new Error(errorMessage);
         error.status = response.status;
         error.data = errorData;
         error.requestId = response.headers.get('X-Request-ID') || requestId;
+
+        // Parse Retry-After header or regex from error message
+        const retryHeader = response.headers.get('Retry-After');
+        if (retryHeader && !isNaN(parseInt(retryHeader, 10))) {
+          error.retryAfter = parseInt(retryHeader, 10);
+        } else if (errorData && typeof errorData.retry_after === 'number') {
+          error.retryAfter = errorData.retry_after;
+        } else {
+          const match = errorMessage.match(/wait\s+(\d+)\s*(?:seconds|s)/i);
+          if (match) {
+            error.retryAfter = parseInt(match[1], 10);
+          }
+        }
+
         throw error;
       }
 

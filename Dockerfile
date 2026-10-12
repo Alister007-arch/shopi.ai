@@ -29,4 +29,4 @@ COPY frontend/public ./frontend/public
 WORKDIR /app/backend
 EXPOSE 8000
 
-CMD ["sh", "-c", "python -c 'import setup_db; setup_db.create_database()' && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]

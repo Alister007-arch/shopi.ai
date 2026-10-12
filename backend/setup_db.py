@@ -13,12 +13,7 @@ def create_database(db_path: str = None):
     conn = sqlite3.connect(target_path)
     cursor = conn.cursor()
 
-    # Recreate tables with expanded schema
-    cursor.execute("DROP TABLE IF EXISTS categories")
-    cursor.execute("DROP TABLE IF EXISTS products")
-    cursor.execute("DROP TABLE IF EXISTS orders")
-    cursor.execute("DROP TABLE IF EXISTS order_items")
-
+    # Ensure schema tables exist (strictly additive - never drop tables)
     # Categories hierarchy table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS categories (
@@ -61,6 +56,17 @@ def create_database(db_path: str = None):
             FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
         )
     """)
+
+    # Ensure schema migrations for existing products table
+    for col_name, col_sql in [
+        ("category_id", "INTEGER"),
+        ("version", "INTEGER DEFAULT 1"),
+        ("created_at", "TEXT"),
+    ]:
+        try:
+            cursor.execute(f"ALTER TABLE products ADD COLUMN {col_name} {col_sql}")
+        except Exception:
+            pass
 
     # Create reviews table
     cursor.execute("""
@@ -544,39 +550,40 @@ def create_database(db_path: str = None):
         (136, 5.0, "Gaurav Malhotra","Philips 9-in-1 trimmer is precise and cordless battery easily lasts 5 full beard trims on a single charge.")
     ]
 
-    cursor.execute("DELETE FROM reviews")
-    cursor.executemany(
-        "INSERT INTO reviews (product_id, rating, reviewer_name, review_text) VALUES (?, ?, ?, ?)",
-        reviews,
-    )
-
-    # Clean existing orders and insert realistic initial order
-    cursor.execute("DELETE FROM orders")
-    cursor.execute("DELETE FROM order_items")
-
-    initial_order_num = "ORD-2026-1001"
-    cursor.execute("""
-        INSERT INTO orders (
-            order_number, customer_name, customer_email, customer_address, items_summary,
-            subtotal, subtotal_inr, delivery_fee, delivery_fee_inr, total_price, total_price_inr,
-            currency, status, payment_method, ordered_at
-        ) VALUES (
-            ?, 'Rahul Sharma', 'rahul.sharma@example.com', 'Flat 402, Green Park Avenue, Bengaluru 560034',
-            '1x Organic Raw Honey (500g), 1x Rolled Oats (1kg)',
-            20.48, 1741, 0.0, 0, 20.48, 1741,
-            'INR', 'Confirmed', 'Demo Pay / COD', datetime('now', '-1 day')
+    # Additive reviews seeding (only if empty)
+    cursor.execute("SELECT COUNT(*) FROM reviews")
+    if cursor.fetchone()[0] == 0:
+        cursor.executemany(
+            "INSERT INTO reviews (product_id, rating, reviewer_name, review_text) VALUES (?, ?, ?, ?)",
+            reviews,
         )
-    """, (initial_order_num,))
-    order_id = cursor.lastrowid
 
-    cursor.execute("""
-        INSERT INTO order_items (order_id, product_id, product_name, unit_price, unit_price_inr, quantity, total_price, total_price_inr)
-        VALUES (?, 1, 'Organic Raw Honey', 14.99, 1274, 1, 14.99, 1274)
-    """, (order_id,))
-    cursor.execute("""
-        INSERT INTO order_items (order_id, product_id, product_name, unit_price, unit_price_inr, quantity, total_price, total_price_inr)
-        VALUES (?, 18, 'Rolled Oats', 5.49, 467, 1, 5.49, 467)
-    """, (order_id,))
+    # Additive sample order seeding (only if orders table is currently empty)
+    cursor.execute("SELECT COUNT(*) FROM orders")
+    if cursor.fetchone()[0] == 0:
+        initial_order_num = "ORD-2026-1001"
+        cursor.execute("""
+            INSERT INTO orders (
+                order_number, customer_name, customer_email, customer_address, items_summary,
+                subtotal, subtotal_inr, delivery_fee, delivery_fee_inr, total_price, total_price_inr,
+                currency, status, payment_method, ordered_at
+            ) VALUES (
+                ?, 'Rahul Sharma', 'rahul.sharma@example.com', 'Flat 402, Green Park Avenue, Bengaluru 560034',
+                '1x Organic Raw Honey (500g), 1x Rolled Oats (1kg)',
+                20.48, 1741, 0.0, 0, 20.48, 1741,
+                'INR', 'Confirmed', 'Demo Pay / COD', datetime('now', '-1 day')
+            )
+        """, (initial_order_num,))
+        order_id = cursor.lastrowid
+
+        cursor.execute("""
+            INSERT INTO order_items (order_id, product_id, product_name, unit_price, unit_price_inr, quantity, total_price, total_price_inr)
+            VALUES (?, 1, 'Organic Raw Honey', 14.99, 1274, 1, 14.99, 1274)
+        """, (order_id,))
+        cursor.execute("""
+            INSERT INTO order_items (order_id, product_id, product_name, unit_price, unit_price_inr, quantity, total_price, total_price_inr)
+            VALUES (?, 18, 'Rolled Oats', 5.49, 467, 1, 5.49, 467)
+        """, (order_id,))
 
     conn.commit()
     conn.close()

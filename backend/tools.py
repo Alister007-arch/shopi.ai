@@ -924,7 +924,7 @@ def confirm_and_place_order(
                 user_id = u_row["id"]
             else:
                 c_auth.execute(
-                    "INSERT INTO users (email, hashed_password, full_name, role, is_active, created_at) VALUES (?, ?, ?, 'customer', 1, datetime('now'))",
+                    "INSERT INTO users (email, hashed_password, full_name, role, is_active, phone_consent, created_at) VALUES (?, ?, ?, 'customer', 1, 0, datetime('now'))",
                     (customer_email.strip(), "unusable_placeholder_hash", customer_name or "Verified Customer")
                 )
                 conn_auth_check.commit()

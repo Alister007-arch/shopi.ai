@@ -64,22 +64,40 @@ export const authApi = {
     return updated;
   },
 
-  async forgotPassword(identifier, channel = 'email') {
-    const isPhone = typeof identifier === 'string' && !identifier.includes('@') && /^\+?[\d\s\-]+$/.test(identifier);
-    const body = {
-      channel,
-      ...(isPhone ? { phone: identifier.replace(/[\s\-]/g, '') } : { email: identifier }),
-    };
+  async forgotPassword(param, defaultChannel = 'email') {
+    let body = {};
+    if (typeof param === 'object' && param !== null) {
+      body = {
+        channel: param.channel || defaultChannel,
+        ...(param.phone ? { phone: param.phone.replace(/[\s\-]/g, '') } : {}),
+        ...(param.email ? { email: param.email } : {}),
+      };
+    } else {
+      const isPhone = typeof param === 'string' && !param.includes('@') && /^\+?[\d\s\-]+$/.test(param);
+      body = {
+        channel: defaultChannel,
+        ...(isPhone ? { phone: param.replace(/[\s\-]/g, '') } : { email: param }),
+      };
+    }
     return await api.post('/api/auth/forgot-password', body);
   },
 
   async resetPassword(identifier, code, newPassword) {
-    const isPhone = typeof identifier === 'string' && !identifier.includes('@') && /^\+?[\d\s\-]+$/.test(identifier);
     const body = {
       code,
       new_password: newPassword,
-      ...(isPhone ? { phone: identifier.replace(/[\s\-]/g, '') } : { email: identifier }),
     };
+    if (typeof identifier === 'object' && identifier !== null) {
+      if (identifier.phone) body.phone = identifier.phone.replace(/[\s\-]/g, '');
+      if (identifier.email) body.email = identifier.email;
+    } else {
+      const isPhone = typeof identifier === 'string' && !identifier.includes('@') && /^\+?[\d\s\-]+$/.test(identifier);
+      if (isPhone) {
+        body.phone = identifier.replace(/[\s\-]/g, '');
+      } else {
+        body.email = identifier;
+      }
+    }
     return await api.post('/api/auth/reset-password', body);
   },
 

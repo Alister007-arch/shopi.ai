@@ -23,6 +23,7 @@ import {
   Zap,
   Upload,
   Download,
+  Clock,
 } from 'lucide-react';
 import { API_BASE } from '../config';
 import authApi from '../api/auth';
@@ -33,10 +34,31 @@ export default function AdminDashboard({ onClose, onProductUpdated, currentUser:
   const dialogRef = useRef(null);
 
   // Auth state
+  const isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true';
   const [currentUser, setCurrentUser] = useState(() => propCurrentUser || authApi.getStoredUser());
-  const [adminLoginForm, setAdminLoginForm] = useState({ email: 'admin@moss.internal', password: 'Admin@123456' });
+  const [adminLoginForm, setAdminLoginForm] = useState({
+    email: '',
+    password: '',
+  });
   const [authError, setAuthError] = useState(null);
   const [authSubmitting, setAuthSubmitting] = useState(false);
+  const [adminRateLimitSeconds, setAdminRateLimitSeconds] = useState(0);
+
+  // Live countdown timer for admin rate limiting
+  useEffect(() => {
+    if (adminRateLimitSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setAdminRateLimitSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setAuthError(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [adminRateLimitSeconds]);
 
   useEffect(() => {
     if (propCurrentUser) {
@@ -541,11 +563,17 @@ export default function AdminDashboard({ onClose, onProductUpdated, currentUser:
       }
       showToast(`Welcome Administrator ${data.user.full_name}!`);
     } catch (err) {
-      const msg = err.message || '';
-      if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Load failed')) {
-        setAuthError('Backend server is offline or unreachable at http://localhost:8000. Please ensure the backend is running.');
+      if (err.status === 429 || (err.message && err.message.toLowerCase().includes('too many login attempts'))) {
+        const sec = err.retryAfter || 60;
+        setAdminRateLimitSeconds(sec);
+        setAuthError(`Too many login attempts. Please wait ${sec} seconds before trying again.`);
       } else {
-        setAuthError(msg || 'Login failed. Please verify admin email and password.');
+        const msg = err.message || '';
+        if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Load failed')) {
+          setAuthError('Backend server is offline or unreachable at http://localhost:8000. Please ensure the backend is running.');
+        } else {
+          setAuthError(msg || 'Login failed. Please verify admin email and password.');
+        }
       }
     } finally {
       setAuthSubmitting(false);
@@ -770,52 +798,54 @@ export default function AdminDashboard({ onClose, onProductUpdated, currentUser:
                 </div>
               )}
 
-              {/* Fast 1-Click Demo Admin Access Banner */}
-              <div style={{
-                background: 'var(--moss-tint)',
-                border: '1.5px solid var(--moss-border)',
-                borderRadius: 10,
-                padding: '12px 16px',
-                marginBottom: 18,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 12,
-                textAlign: 'left',
-              }}>
-                <div>
-                  <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--moss-deep)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <Zap size={15} color="var(--clay-terracotta)" />
-                    Demo Admin Credentials
+              {/* Fast 1-Click Demo Admin Access Banner (Visible only when VITE_DEMO_MODE is enabled) */}
+              {isDemoMode && (
+                <div style={{
+                  background: 'var(--moss-tint)',
+                  border: '1.5px solid var(--moss-border)',
+                  borderRadius: 10,
+                  padding: '12px 16px',
+                  marginBottom: 18,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  textAlign: 'left',
+                }}>
+                  <div>
+                    <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--moss-deep)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Zap size={15} color="var(--clay-terracotta)" />
+                      Demo Admin Credentials
+                    </div>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                      <strong>admin@moss.internal</strong> / <strong>Admin@123456</strong>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-                    <strong>admin@moss.internal</strong> / <strong>Admin@123456</strong>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleQuickAdminLogin}
+                    disabled={authSubmitting}
+                    style={{
+                      background: 'var(--moss-deep)',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: 8,
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      cursor: authSubmitting ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      whiteSpace: 'nowrap',
+                      boxShadow: '0 2px 6px rgba(44, 62, 45, 0.2)',
+                    }}
+                  >
+                    <Zap size={14} color="#fcd34d" />
+                    {authSubmitting ? 'Signing in...' : '1-Click Sign In'}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleQuickAdminLogin}
-                  disabled={authSubmitting}
-                  style={{
-                    background: 'var(--moss-deep)',
-                    color: '#ffffff',
-                    border: 'none',
-                    padding: '8px 16px',
-                    borderRadius: 8,
-                    fontSize: '0.82rem',
-                    fontWeight: 700,
-                    cursor: authSubmitting ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    whiteSpace: 'nowrap',
-                    boxShadow: '0 2px 6px rgba(44, 62, 45, 0.2)',
-                  }}
-                >
-                  <Zap size={14} color="#fcd34d" />
-                  {authSubmitting ? 'Signing in...' : '1-Click Sign In'}
-                </button>
-              </div>
+              )}
 
               {authError && (
                 <div
@@ -876,32 +906,34 @@ export default function AdminDashboard({ onClose, onProductUpdated, currentUser:
                       fontSize: '0.88rem',
                     }}
                   />
-                  <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                      Password: <strong>Admin@123456</strong>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setAdminLoginForm({ email: 'admin@moss.internal', password: 'Admin@123456' })}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--moss-deep)',
-                        fontSize: '0.74rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        textDecoration: 'underline',
-                        padding: 0,
-                      }}
-                    >
-                      Fill Defaults
-                    </button>
-                  </div>
+                  {isDemoMode && (
+                    <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                        Password: <strong>Admin@123456</strong>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setAdminLoginForm({ email: 'admin@moss.internal', password: 'Admin@123456' })}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--moss-deep)',
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                          padding: 0,
+                        }}
+                      >
+                        Fill Defaults
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <button
                   type="submit"
-                  disabled={authSubmitting}
+                  disabled={authSubmitting || adminRateLimitSeconds > 0}
                   style={{
                     padding: '12px 18px',
                     borderRadius: 8,
@@ -910,7 +942,8 @@ export default function AdminDashboard({ onClose, onProductUpdated, currentUser:
                     fontWeight: 700,
                     fontSize: '0.9rem',
                     border: 'none',
-                    cursor: authSubmitting ? 'not-allowed' : 'pointer',
+                    cursor: (authSubmitting || adminRateLimitSeconds > 0) ? 'not-allowed' : 'pointer',
+                    opacity: adminRateLimitSeconds > 0 ? 0.75 : 1,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -918,8 +951,19 @@ export default function AdminDashboard({ onClose, onProductUpdated, currentUser:
                     marginTop: 8,
                   }}
                 >
-                  <LogIn size={16} />
-                  <span>{authSubmitting ? 'Verifying Credentials...' : 'Sign In as Administrator'}</span>
+                  {authSubmitting ? (
+                    'Signing in...'
+                  ) : adminRateLimitSeconds > 0 ? (
+                    <>
+                      <Clock size={16} />
+                      <span>Locked (Wait {adminRateLimitSeconds}s)</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogIn size={16} />
+                      <span>Sign In to Admin Console</span>
+                    </>
+                  )}
                 </button>
               </form>
             </div>

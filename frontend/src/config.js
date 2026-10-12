@@ -1,4 +1,5 @@
-// Dynamic API Base URL:
-// - In development: defaults to 'http://localhost:8000'
-// - In production: defaults to '' (relative paths on same host) or VITE_API_BASE
-export const API_BASE = import.meta.env.VITE_API_BASE ?? (import.meta.env.DEV ? 'http://localhost:8000' : '');
+// Single source of truth for API Base URL:
+// Uses VITE_API_BASE_URL if explicitly provided; defaults to empty string so
+// all requests in development leverage the Vite dev proxy seamlessly.
+export const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+export default API_BASE;

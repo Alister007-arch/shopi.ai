@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Lock, Mail, Phone, CheckCircle2, AlertCircle, ArrowRight, ArrowLeft, Shield, KeyRound, Clock } from 'lucide-react';
+import { X, User, Lock, Mail, Phone, CheckCircle2, AlertCircle, ArrowRight, ArrowLeft, Shield, KeyRound, Clock, MessageCircle } from 'lucide-react';
 import { authApi } from '../api/auth';
 import { BRAND } from '../config/brand';
 
 export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessage = null }) {
   const [tab, setTab] = useState('login'); // 'login' | 'register' | 'forgot'
   const [forgotStep, setForgotStep] = useState('request'); // 'request' | 'reset'
+  const [channel, setChannel] = useState('email'); // 'email' | 'sms' | 'whatsapp'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [forgotPhone, setForgotPhone] = useState('');
   const [resetCode, setResetCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -39,11 +41,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
     if (isOpen) {
       setTab('login');
       setForgotStep('request');
+      setChannel('email');
       setError(null);
       setSuccessMessage(null);
       setEmail('');
       setPassword('');
       setPhone('');
+      setForgotPhone('');
       setPhoneConsent(false);
       setFullName('');
       setResetCode('');
@@ -80,16 +84,25 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
         onClose();
       } else if (tab === 'forgot') {
         if (forgotStep === 'request') {
-          if (!email.trim()) {
-            throw new Error('Please enter your registered email address.');
+          let data;
+          if (channel === 'email') {
+            if (!email.trim() || !email.includes('@')) {
+              throw new Error('Please enter a valid registered email address.');
+            }
+            data = await authApi.forgotPassword(email.trim(), 'email');
+          } else {
+            const cleanPhone = forgotPhone.replace(/[\s\-]/g, '');
+            if (!cleanPhone || !/^[6-9]\d{9}$/.test(cleanPhone)) {
+              throw new Error('Please enter a valid 10-digit Indian mobile number.');
+            }
+            data = await authApi.forgotPassword(cleanPhone, channel);
           }
-          const data = await authApi.forgotPassword(email.trim());
-          setSuccessMessage(data.message || 'A 6-digit verification code has been sent to your email.');
+          setSuccessMessage(data.message || 'A 6-digit verification code has been dispatched.');
           setResetCode('');
           setForgotStep('reset');
         } else {
           if (!resetCode.trim()) {
-            throw new Error('Please enter the 6-digit verification code sent to your email.');
+            throw new Error('Please enter the 6-digit verification code.');
           }
           if (newPassword.length < 8) {
             throw new Error('New password must be at least 8 characters.');
@@ -97,7 +110,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
           if (newPassword !== confirmPassword) {
             throw new Error('Passwords do not match.');
           }
-          const data = await authApi.resetPassword(email.trim(), resetCode.trim(), newPassword);
+          const identifier = channel === 'email' ? email.trim() : forgotPhone.replace(/[\s\-]/g, '');
+          const data = await authApi.resetPassword(identifier, resetCode.trim(), newPassword);
           setSuccessMessage(data.message || 'Password reset successfully. You can now sign in with your new password.');
           setTab('login');
           setPassword('');
@@ -120,6 +134,25 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
     }
   };
 
+  const handleResendCode = async () => {
+    setError(null);
+    setIsLoading(true);
+    try {
+      let data;
+      if (channel === 'email') {
+        data = await authApi.forgotPassword(email.trim(), 'email');
+      } else {
+        const clean = forgotPhone.replace(/[\s\-]/g, '');
+        data = await authApi.forgotPassword(clean, channel);
+      }
+      setSuccessMessage(data.message || 'A new 6-digit verification code has been dispatched.');
+    } catch (err) {
+      setError(err.message || 'Failed to resend code. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSwitchTab = (newTab) => {
     setTab(newTab);
     setError(null);
@@ -127,6 +160,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
     setPhoneConsent(false);
     if (newTab === 'forgot') {
       setForgotStep('request');
+      setChannel('email');
+      setForgotPhone('');
       setResetCode('');
       setNewPassword('');
       setConfirmPassword('');
@@ -349,43 +384,103 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
             </div>
           )}
 
-          {tab === 'forgot' && forgotStep === 'reset' && (
-            <div
-              id="auth-email-otp-notice"
-              style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                color: '#334155',
-                borderRadius: 8,
-                padding: '10px 14px',
-                fontSize: '0.82rem',
-                lineHeight: 1.45,
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 8,
-              }}
-            >
-              <Mail size={16} color="var(--moss-deep, #1b2a20)" style={{ marginTop: 2, flexShrink: 0 }} />
-              <div>
-                A 6-digit verification code was sent to <strong>{email}</strong>. Please check your inbox or spam folder and enter the code below.
+          {/* Forgot password Channel Selector in Step 1 */}
+          {tab === 'forgot' && forgotStep === 'request' && (
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                Deliver Verification Code Via:
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                <button
+                  type="button"
+                  id="auth-channel-email"
+                  onClick={() => setChannel('email')}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    border: channel === 'email' ? '2px solid var(--moss-deep, #1b2a20)' : '1px solid var(--moss-border, #cbd5e1)',
+                    background: channel === 'email' ? 'rgba(28, 48, 36, 0.08)' : '#ffffff',
+                    fontWeight: channel === 'email' ? 700 : 500,
+                    color: channel === 'email' ? 'var(--moss-deep, #1b2a20)' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    fontSize: '0.8rem',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <Mail size={15} />
+                  <span>Email</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="auth-channel-sms"
+                  onClick={() => setChannel('sms')}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    border: channel === 'sms' ? '2px solid var(--moss-deep, #1b2a20)' : '1px solid var(--moss-border, #cbd5e1)',
+                    background: channel === 'sms' ? 'rgba(28, 48, 36, 0.08)' : '#ffffff',
+                    fontWeight: channel === 'sms' ? 700 : 500,
+                    color: channel === 'sms' ? 'var(--moss-deep, #1b2a20)' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    fontSize: '0.8rem',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <Phone size={15} />
+                  <span>SMS</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="auth-channel-whatsapp"
+                  onClick={() => setChannel('whatsapp')}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    border: channel === 'whatsapp' ? '2px solid #25D366' : '1px solid var(--moss-border, #cbd5e1)',
+                    background: channel === 'whatsapp' ? 'rgba(37, 211, 102, 0.1)' : '#ffffff',
+                    fontWeight: channel === 'whatsapp' ? 700 : 500,
+                    color: channel === 'whatsapp' ? '#128C7E' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    fontSize: '0.8rem',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <MessageCircle size={15} />
+                  <span>WhatsApp</span>
+                </button>
               </div>
             </div>
           )}
 
-          {tab === 'register' && (
+          {/* Email input (used across login, register, and email forgot password) */}
+          {(tab !== 'forgot' || (tab === 'forgot' && forgotStep === 'request' && channel === 'email')) && (
             <div>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
-                Full Name
+                {tab === 'forgot' ? 'Registered Email Address *' : 'Email Address'}
               </label>
               <div style={{ position: 'relative' }}>
-                <User size={16} style={{ position: 'absolute', left: 12, top: 11, color: '#94a3b8' }} />
+                <Mail size={16} style={{ position: 'absolute', left: 12, top: 11, color: '#94a3b8' }} />
                 <input
-                  id="auth-name-input"
-                  type="text"
+                  id="auth-email-input"
+                  type="email"
                   required
-                  placeholder="e.g. Aditi Sharma"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="you@domain.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   style={{
                     width: '100%',
                     padding: '9px 12px 9px 36px',
@@ -393,39 +488,109 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
                     border: '1px solid var(--moss-border, #cbd5e1)',
                     fontSize: '0.85rem',
                     outline: 'none',
+                    backgroundColor: '#ffffff',
                   }}
                 />
               </div>
             </div>
           )}
 
-          {/* Email input (used across login, register, and forgot password) */}
-          <div>
-            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
-              Email Address
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Mail size={16} style={{ position: 'absolute', left: 12, top: 11, color: '#94a3b8' }} />
-              <input
-                id="auth-email-input"
-                type="email"
-                required
-                placeholder="you@domain.com"
-                value={email}
-                disabled={tab === 'forgot' && forgotStep === 'reset'}
-                onChange={(e) => setEmail(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '9px 12px 9px 36px',
+          {/* Phone input for SMS & WhatsApp forgot password */}
+          {tab === 'forgot' && forgotStep === 'request' && channel !== 'email' && (
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                Registered Mobile Number (India) *
+              </label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span style={{
+                  padding: '9px 12px',
                   borderRadius: 8,
                   border: '1px solid var(--moss-border, #cbd5e1)',
+                  background: '#f8fafc',
                   fontSize: '0.85rem',
-                  outline: 'none',
-                  backgroundColor: (tab === 'forgot' && forgotStep === 'reset') ? '#f8fafc' : '#ffffff',
-                }}
-              />
+                  fontWeight: 700,
+                  color: 'var(--moss-deep, #1b2a20)',
+                }}>
+                  +91
+                </span>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <Phone size={16} style={{ position: 'absolute', left: 12, top: 11, color: '#94a3b8' }} />
+                  <input
+                    id="auth-forgot-phone-input"
+                    type="tel"
+                    required
+                    maxLength={10}
+                    placeholder="10-digit mobile number"
+                    value={forgotPhone}
+                    onChange={(e) => setForgotPhone(e.target.value.replace(/\D/g, ''))}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px 9px 36px',
+                      borderRadius: 8,
+                      border: '1px solid var(--moss-border, #cbd5e1)',
+                      fontSize: '0.85rem',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+              </div>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>
+                {channel === 'whatsapp'
+                  ? 'We will send a 6-digit verification code directly via WhatsApp.'
+                  : 'Standard carrier SMS delivery rates may apply.'}
+              </span>
             </div>
-          </div>
+          )}
+
+          {/* Step 2 Dispatch Notice */}
+          {tab === 'forgot' && forgotStep === 'reset' && (
+            <div
+              id="auth-otp-dispatch-notice"
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                color: '#334155',
+                borderRadius: 8,
+                padding: '12px 14px',
+                fontSize: '0.82rem',
+                lineHeight: 1.45,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
+              }}
+            >
+              {channel === 'whatsapp' ? (
+                <MessageCircle size={18} color="#128C7E" style={{ marginTop: 2, flexShrink: 0 }} />
+              ) : channel === 'sms' ? (
+                <Phone size={18} color="var(--moss-deep, #1b2a20)" style={{ marginTop: 2, flexShrink: 0 }} />
+              ) : (
+                <Mail size={18} color="var(--moss-deep, #1b2a20)" style={{ marginTop: 2, flexShrink: 0 }} />
+              )}
+              <div style={{ flex: 1 }}>
+                <div>
+                  A 6-digit verification code was dispatched via <strong>{channel.toUpperCase()}</strong> to{' '}
+                  <strong>{channel === 'email' ? email : `+91 ${forgotPhone}`}</strong>.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setForgotStep('request')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    color: 'var(--moss-deep, #1b2a20)',
+                    fontSize: '0.76rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    marginTop: 6,
+                    textDecoration: 'underline',
+                  }}
+                >
+                  Change channel or destination
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Password input for Login and Register */}
           {tab !== 'forgot' && (
@@ -640,9 +805,33 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
             ) : forgotStep === 'request' ? (
               'Send Verification Code'
             ) : (
-              'Reset Password'
+              'Reset Password & Sign In'
             )}
           </button>
+
+          {/* Resend Code in Step 2 */}
+          {tab === 'forgot' && forgotStep === 'reset' && (
+            <div style={{ textAlign: 'center', marginTop: 2 }}>
+              <button
+                id="auth-resend-code-btn"
+                type="button"
+                disabled={isLoading}
+                onClick={handleResendCode}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  color: 'var(--moss-deep, #1b2a20)',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
+                  textDecoration: 'underline',
+                }}
+              >
+                Didn't receive the code? Resend Code
+              </button>
+            </div>
+          )}
 
           {/* Extra recovery helpers */}
           {tab === 'forgot' && (

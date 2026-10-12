@@ -15,7 +15,7 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     full_name = Column(String(255), nullable=False)
     phone = Column(String(20), nullable=True)
-    phone_consent = Column(Boolean, default=False, nullable=False)
+    phone_consent = Column(Boolean, default=False, nullable=True)
     phone_consent_at = Column(DateTime, nullable=True)
     role = Column(String(50), default="customer", nullable=False)  # 'customer' | 'admin'
     is_active = Column(Boolean, default=True, nullable=False)
