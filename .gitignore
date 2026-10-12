@@ -36,6 +36,10 @@ yarn-error.log*
 scratch/
 .tempmediaStorage/
 *.tmp
+test-results/
+frontend/test-results/
+shopping agent/
+.github/
 
 # Operating System files
 .DS_Store

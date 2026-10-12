@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:all": "python ../scripts/dev_all.py",
     "build": "vite build",
     "preview": "vite preview",
     "verify:brand": "python ../scripts/verify_brand_rename.py"

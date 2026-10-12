@@ -2,10 +2,10 @@
   "passed_count": 60,
   "total_count": 60,
   "pass_pct": 100.0,
-  "duration_seconds": 0.32,
+  "duration_seconds": 0.36,
   "is_mock_llm": false,
   "llm_mode": "Live LLM (Groq Llama-3.3-70b)",
-  "timestamp": "2026-10-12T18:01:54Z",
+  "timestamp": "2026-10-12T19:43:02Z",
   "domain_scores": {
     "search_discovery": {
       "passed": 10,
