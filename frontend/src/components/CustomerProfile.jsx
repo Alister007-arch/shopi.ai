@@ -77,6 +77,7 @@ export default function CustomerProfile({
     email: currentUser?.email || '',
     phone: currentUser?.phone || '',
     photo: currentUser?.avatar_url || PRESET_AVATARS[0],
+    phoneConsent: Boolean(currentUser?.phone_consent),
   });
   const [profileSaving, setProfileSaving] = useState(false);
 
@@ -91,6 +92,7 @@ export default function CustomerProfile({
           name: data.full_name || prev.name,
           email: data.email || prev.email,
           phone: data.phone || prev.phone,
+          phoneConsent: data.phone_consent !== undefined ? Boolean(data.phone_consent) : prev.phoneConsent,
         }));
         if (data.saved_addresses && Array.isArray(data.saved_addresses)) {
           setAddresses(data.saved_addresses);
@@ -110,6 +112,7 @@ export default function CustomerProfile({
         email: currentUser.email || prev.email,
         phone: currentUser.phone || prev.phone,
         photo: currentUser.avatar_url || prev.photo,
+        phoneConsent: currentUser.phone_consent !== undefined ? Boolean(currentUser.phone_consent) : prev.phoneConsent,
       }));
       fetchMeData();
       fetchAddresses();
@@ -132,8 +135,8 @@ export default function CustomerProfile({
     setProfileSaving(true);
     try {
       if (authApi.isAuthenticated()) {
-        const updated = await authApi.updateProfile(profileForm.name, cleanPhone);
-        if (onUpdateUser) onUpdateUser({ ...updated, avatar_url: profileForm.photo });
+        const updated = await authApi.updateProfile(profileForm.name, cleanPhone, profileForm.phoneConsent);
+        if (onUpdateUser) onUpdateUser({ ...updated, avatar_url: profileForm.photo, phone_consent: profileForm.phoneConsent });
       } else {
         const currentStored = authApi.getStoredUser() || {};
         const localUser = {
@@ -141,6 +144,7 @@ export default function CustomerProfile({
           full_name: profileForm.name,
           email: profileForm.email,
           phone: cleanPhone,
+          phone_consent: profileForm.phoneConsent,
           avatar_url: profileForm.photo,
         };
         localStorage.setItem('moss_user_profile', JSON.stringify(localUser));
@@ -973,6 +977,20 @@ export default function CustomerProfile({
                 </div>
               </div>
 
+              <div style={{ marginTop: -8 }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(profileForm.phoneConsent)}
+                    onChange={(e) => setProfileForm({ ...profileForm, phoneConsent: e.target.checked })}
+                    style={{ marginTop: 2, accentColor: 'var(--moss-deep)', width: 16, height: 16 }}
+                  />
+                  <span>
+                    I consent to receiving transactional order updates and security verification codes via SMS & WhatsApp.
+                  </span>
+                </label>
+              </div>
+
               <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
                 <button
                   type="button"
@@ -1016,8 +1034,21 @@ export default function CustomerProfile({
                   Phone Number
                 </span>
                 <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--moss-deep)', marginTop: 4 }}>
-                  +91 {profileForm.phone}
+                  {profileForm.phone ? `+91 ${profileForm.phone}` : 'Not provided'}
                 </div>
+                {profileForm.phone && (
+                  <div style={{ fontSize: '0.74rem', marginTop: 6, display: 'flex', alignItems: 'center', gap: 5, color: profileForm.phoneConsent ? 'var(--moss-sage)' : 'var(--text-muted)' }}>
+                    {profileForm.phoneConsent ? (
+                      <>
+                        <CheckCircle2 size={13} /> SMS & WhatsApp Enabled
+                      </>
+                    ) : (
+                      <>
+                        <span>Consent not enabled</span>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div style={{ background: 'var(--bg-card-muted)', padding: 20, borderRadius: 'var(--radius-md)' }}>

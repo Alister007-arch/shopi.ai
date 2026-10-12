@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, User, Lock, Mail, Phone, CheckCircle2, AlertCircle, ArrowRight, ArrowLeft, Shield, KeyRound } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, User, Lock, Mail, Phone, CheckCircle2, AlertCircle, ArrowRight, ArrowLeft, Shield, KeyRound, Clock } from 'lucide-react';
 import { authApi } from '../api/auth';
 import { BRAND } from '../config/brand';
 
@@ -13,19 +13,43 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
   const [resetCode, setResetCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [phoneConsent, setPhoneConsent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [rateLimitSeconds, setRateLimitSeconds] = useState(0);
 
-  React.useEffect(() => {
+  // Live second-by-second countdown timer for rate limiting
+  useEffect(() => {
+    if (rateLimitSeconds <= 0) return;
+    const timer = setInterval(() => {
+      setRateLimitSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setError(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [rateLimitSeconds]);
+
+  useEffect(() => {
     if (isOpen) {
       setTab('login');
       setForgotStep('request');
       setError(null);
       setSuccessMessage(null);
+      setEmail('');
+      setPassword('');
+      setPhone('');
+      setPhoneConsent(false);
+      setFullName('');
       setResetCode('');
       setNewPassword('');
       setConfirmPassword('');
+      setRateLimitSeconds(0);
     }
   }, [isOpen]);
 
@@ -51,7 +75,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
         if (phone && !/^[6-9]\d{9}$/.test(phone.trim())) {
           throw new Error('Phone number must be a valid 10-digit Indian mobile number.');
         }
-        const data = await authApi.register(email.trim(), password, fullName.trim(), phone.trim() || undefined);
+        const data = await authApi.register(email.trim(), password, fullName.trim(), phone.trim() || undefined, phoneConsent);
         if (onAuthSuccess) onAuthSuccess(data.user);
         onClose();
       } else if (tab === 'forgot') {
@@ -84,7 +108,13 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
         }
       }
     } catch (err) {
-      setError(err.message || 'Authentication failed. Please verify your credentials.');
+      if (err.status === 429 || (err.message && err.message.toLowerCase().includes('too many login attempts'))) {
+        const seconds = err.retryAfter || 60;
+        setRateLimitSeconds(seconds);
+        setError(`Too many login attempts. Please wait ${seconds} seconds before trying again.`);
+      } else {
+        setError(err.message || 'Authentication failed. Please verify your credentials.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -94,6 +124,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
     setTab(newTab);
     setError(null);
     setSuccessMessage(null);
+    setPhoneConsent(false);
     if (newTab === 'forgot') {
       setForgotStep('request');
       setResetCode('');
@@ -305,8 +336,16 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
                 gap: 8,
               }}
             >
-              <AlertCircle size={16} />
-              <span>{error}</span>
+              {rateLimitSeconds > 0 ? (
+                <Clock size={16} style={{ flexShrink: 0 }} />
+              ) : (
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
+              )}
+              <span>
+                {rateLimitSeconds > 0
+                  ? `Too many login attempts. Please wait ${rateLimitSeconds}s before trying again.`
+                  : error}
+              </span>
             </div>
           )}
 
@@ -438,32 +477,49 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
             </div>
           )}
 
-          {/* Registration phone number */}
+          {/* Registration phone number & consent */}
           {tab === 'register' && (
-            <div>
-              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
-                Mobile Number (India) <span style={{ color: '#94a3b8' }}>(Optional)</span>
-              </label>
-              <div style={{ position: 'relative' }}>
-                <Phone size={16} style={{ position: 'absolute', left: 12, top: 11, color: '#94a3b8' }} />
-                <input
-                  id="auth-phone-input"
-                  type="tel"
-                  maxLength={10}
-                  placeholder="10-digit mobile number"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
-                  style={{
-                    width: '100%',
-                    padding: '9px 12px 9px 36px',
-                    borderRadius: 8,
-                    border: '1px solid var(--moss-border, #cbd5e1)',
-                    fontSize: '0.85rem',
-                    outline: 'none',
-                  }}
-                />
+            <>
+              <div>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                  Mobile Number (India) <span style={{ color: '#94a3b8' }}>(Optional)</span>
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Phone size={16} style={{ position: 'absolute', left: 12, top: 11, color: '#94a3b8' }} />
+                  <input
+                    id="auth-phone-input"
+                    type="tel"
+                    maxLength={10}
+                    placeholder="10-digit mobile number"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px 9px 36px',
+                      borderRadius: 8,
+                      border: '1px solid var(--moss-border, #cbd5e1)',
+                      fontSize: '0.85rem',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
               </div>
-            </div>
+
+              <div>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  <input
+                    id="auth-phone-consent-checkbox"
+                    type="checkbox"
+                    checked={phoneConsent}
+                    onChange={(e) => setPhoneConsent(e.target.checked)}
+                    style={{ marginTop: 2, accentColor: 'var(--moss-deep, #1b2a20)', width: 15, height: 15 }}
+                  />
+                  <span>
+                    I consent to receiving order updates & security codes via SMS / WhatsApp.
+                  </span>
+                </label>
+              </div>
+            </>
           )}
 
           {/* Forgot password Step 2 inputs */}
@@ -553,7 +609,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
           <button
             id={tab === 'forgot' ? (forgotStep === 'request' ? 'auth-send-code-btn' : 'auth-reset-password-btn') : 'auth-submit-btn'}
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || (tab === 'login' && rateLimitSeconds > 0)}
             className="btn-primary"
             style={{
               width: '100%',
@@ -561,17 +617,31 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
               fontSize: '0.9rem',
               fontWeight: 700,
               marginTop: 8,
+              color: '#ffffff',
+              opacity: (tab === 'login' && rateLimitSeconds > 0) ? 0.75 : 1,
+              cursor: (isLoading || (tab === 'login' && rateLimitSeconds > 0)) ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
             }}
           >
-            {isLoading
-              ? 'Processing...'
-              : tab === 'login'
-              ? `Sign In to ${BRAND.name}`
-              : tab === 'register'
-              ? 'Create Customer Account'
-              : forgotStep === 'request'
-              ? 'Send Verification Code'
-              : 'Reset Password'}
+            {isLoading ? (
+              'Processing...'
+            ) : tab === 'login' && rateLimitSeconds > 0 ? (
+              <>
+                <Clock size={16} />
+                <span>Locked (Wait {rateLimitSeconds}s)</span>
+              </>
+            ) : tab === 'login' ? (
+              `Sign In to ${BRAND.name}`
+            ) : tab === 'register' ? (
+              'Create Customer Account'
+            ) : forgotStep === 'request' ? (
+              'Send Verification Code'
+            ) : (
+              'Reset Password'
+            )}
           </button>
 
           {/* Extra recovery helpers */}
@@ -595,15 +665,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
               </button>
             </div>
           )}
-
-          <p style={{
-            fontSize: '0.75rem',
-            color: 'var(--text-secondary, #64748b)',
-            textAlign: 'center',
-            margin: '6px 0 0',
-          }}>
-            Protected with secure token authentication & session isolation.
-          </p>
         </form>
       </div>
     </div>

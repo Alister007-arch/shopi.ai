@@ -1,12 +1,13 @@
 import { api } from './client';
 
 export const authApi = {
-  async register(email, password, fullName, phone) {
+  async register(email, password, fullName, phone, phoneConsent = false) {
     const data = await api.post('/api/auth/register', {
       email,
       password,
       full_name: fullName,
       phone: phone || undefined,
+      phone_consent: Boolean(phoneConsent),
     });
     if (data.access_token) {
       api.setAuthToken(data.access_token);
@@ -48,27 +49,38 @@ export const authApi = {
     return await api.delete(`/api/user/addresses/${addressId}`);
   },
 
-  async updateProfile(fullName, phone) {
-    const data = await api.put('/api/auth/profile', {
+  async updateProfile(fullName, phone, phoneConsent) {
+    const payload = {
       full_name: fullName,
       phone: phone || undefined,
-    });
+    };
+    if (phoneConsent !== undefined) {
+      payload.phone_consent = Boolean(phoneConsent);
+    }
+    const data = await api.put('/api/auth/profile', payload);
     const current = authApi.getStoredUser() || {};
     const updated = { ...current, ...data };
     localStorage.setItem('moss_user_profile', JSON.stringify(updated));
     return updated;
   },
 
-  async forgotPassword(email) {
-    return await api.post('/api/auth/forgot-password', { email });
+  async forgotPassword(identifier, channel = 'email') {
+    const isPhone = typeof identifier === 'string' && !identifier.includes('@') && /^\+?[\d\s\-]+$/.test(identifier);
+    const body = {
+      channel,
+      ...(isPhone ? { phone: identifier.replace(/[\s\-]/g, '') } : { email: identifier }),
+    };
+    return await api.post('/api/auth/forgot-password', body);
   },
 
-  async resetPassword(email, code, newPassword) {
-    return await api.post('/api/auth/reset-password', {
-      email,
+  async resetPassword(identifier, code, newPassword) {
+    const isPhone = typeof identifier === 'string' && !identifier.includes('@') && /^\+?[\d\s\-]+$/.test(identifier);
+    const body = {
       code,
       new_password: newPassword,
-    });
+      ...(isPhone ? { phone: identifier.replace(/[\s\-]/g, '') } : { email: identifier }),
+    };
+    return await api.post('/api/auth/reset-password', body);
   },
 
   async changePassword(currentPassword, newPassword) {

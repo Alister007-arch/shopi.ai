@@ -11,7 +11,7 @@ from backend.app.config import settings
 from backend.config.brand import BRAND
 from backend.app.db.session import get_db
 from backend.app.db.models import User, PasswordResetCode
-from backend.app.notifications.service import dispatch_notification
+from backend.app.notifications.service import dispatch_notification, mask_identifier
 from backend.app.auth.security import (
     hash_password, verify_password,
     create_access_token, create_refresh_token,
@@ -29,6 +29,7 @@ class RegisterRequest(BaseModel):
     password: str = Field(..., min_length=8, description="Password must be at least 8 characters.")
     full_name: str = Field(..., min_length=2, max_length=100)
     phone: Optional[str] = None
+    phone_consent: Optional[bool] = False
 
     @field_validator("phone")
     @classmethod
@@ -47,13 +48,40 @@ class LoginRequest(BaseModel):
 
 
 class ForgotPasswordRequest(BaseModel):
-    email: str = Field(..., pattern=EMAIL_REGEX)
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    channel: str = Field(default="email", description="Channel: email | sms | whatsapp")
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: Optional[str]) -> Optional[str]:
+        if v and not re.match(EMAIL_REGEX, v.strip()):
+            raise ValueError("Invalid email address format.")
+        return v.strip().lower() if v else None
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return None
+        cleaned = re.sub(r"[\s\-]", "", v.strip())
+        if not re.match(r"^[6-9]\d{9}$", cleaned) and not (cleaned.startswith("+91") and len(cleaned) == 13):
+            raise ValueError("Phone number must be a valid 10-digit Indian mobile number.")
+        return cleaned
 
 
 class ResetPasswordRequest(BaseModel):
-    email: str = Field(..., pattern=EMAIL_REGEX)
+    email: Optional[str] = None
+    phone: Optional[str] = None
     code: str = Field(..., min_length=4, max_length=10)
     new_password: str = Field(..., min_length=8, description="Password must be at least 8 characters.")
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: Optional[str]) -> Optional[str]:
+        if v and not re.match(EMAIL_REGEX, v.strip()):
+            raise ValueError("Invalid email address format.")
+        return v.strip().lower() if v else None
 
 
 class RefreshRequest(BaseModel):
@@ -67,6 +95,7 @@ class UserResponse(BaseModel):
     email: str
     full_name: str
     phone: Optional[str] = None
+    phone_consent: Optional[bool] = False
     role: str
 
 
@@ -92,6 +121,8 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
         hashed_password=hash_password(req.password),
         full_name=req.full_name.strip(),
         phone=req.phone,
+        phone_consent=bool(req.phone_consent) if req.phone else False,
+        phone_consent_at=datetime.datetime.now(timezone.utc) if (req.phone and req.phone_consent) else None,
         role="customer",
         is_active=True,
     )
@@ -123,9 +154,12 @@ def check_login_rate_limit(key: str):
     recent = [t for t in LOGIN_ATTEMPTS[key] if now - t < LOGIN_RATE_LIMIT_WINDOW]
     LOGIN_ATTEMPTS[key] = recent
     if len(recent) >= LOGIN_RATE_LIMIT_MAX:
+        oldest = min(recent)
+        remaining = max(1, int(LOGIN_RATE_LIMIT_WINDOW - (now - oldest)))
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many login attempts. Please wait 60 seconds and try again.",
+            detail=f"Too many login attempts. Please wait {remaining} seconds and try again.",
+            headers={"Retry-After": str(remaining)},
         )
     LOGIN_ATTEMPTS[key].append(now)
 
@@ -207,6 +241,7 @@ def get_current_user_profile(current_user: User = Depends(get_current_user)):
 class UpdateProfileRequest(BaseModel):
     full_name: Optional[str] = Field(None, min_length=2, max_length=100)
     phone: Optional[str] = None
+    phone_consent: Optional[bool] = None
 
     @field_validator("phone")
     @classmethod
@@ -235,6 +270,10 @@ def update_profile(
         current_user.full_name = req.full_name.strip()
     if req.phone is not None:
         current_user.phone = req.phone
+    if req.phone_consent is not None:
+        current_user.phone_consent = bool(req.phone_consent)
+        if req.phone_consent:
+            current_user.phone_consent_at = datetime.datetime.now(timezone.utc)
     db.commit()
     db.refresh(current_user)
     return UserResponse.model_validate(current_user)
@@ -279,25 +318,55 @@ RESET_RATE_LIMIT_WINDOW = 60  # seconds
 
 @router.post("/forgot-password")
 def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    """Initiates a password reset request and sends a 6-digit verification code to the registered email."""
-    email_key = req.email.lower().strip()
+    """Initiates a password reset request and dispatches a 6-digit verification code via email, SMS, or WhatsApp."""
+    channel = (req.channel or "email").lower().strip()
+    if channel not in ("email", "sms", "whatsapp"):
+        channel = "email"
+
+    identifier = (req.email or req.phone or "").strip()
+    if not identifier:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please provide an email address or mobile number.",
+        )
+
+    rate_key = f"{channel}:{identifier.lower()}"
     now = time.time()
-    recent = [t for t in FORGOT_ATTEMPTS[email_key] if now - t < FORGOT_RATE_LIMIT_WINDOW]
-    FORGOT_ATTEMPTS[email_key] = recent
+    recent = [t for t in FORGOT_ATTEMPTS[rate_key] if now - t < FORGOT_RATE_LIMIT_WINDOW]
+    FORGOT_ATTEMPTS[rate_key] = recent
     if len(recent) >= FORGOT_RATE_LIMIT_MAX:
+        oldest = min(recent)
+        remaining = max(1, int(FORGOT_RATE_LIMIT_WINDOW - (now - oldest)))
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many password reset requests. Please wait 60 seconds and try again.",
+            detail=f"Too many password reset requests. Please wait {remaining} seconds and try again.",
+            headers={"Retry-After": str(remaining)},
         )
-    FORGOT_ATTEMPTS[email_key].append(now)
+    FORGOT_ATTEMPTS[rate_key].append(now)
 
-    user = db.query(User).filter(User.email == email_key).first()
-    reset_code = None
+    user = None
+    if req.email:
+        user = db.query(User).filter(User.email == req.email.lower().strip()).first()
+    elif req.phone:
+        clean_phone = re.sub(r"\D", "", req.phone)[-10:]
+        user = db.query(User).filter(User.phone.like(f"%{clean_phone}%")).first()
 
+    recipient = None
     if user and user.is_active:
+        if channel == "email":
+            recipient = user.email
+        elif channel in ("sms", "whatsapp"):
+            recipient = user.phone or req.phone
+
+        if channel in ("sms", "whatsapp") and not recipient:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No mobile number is linked to this account. Please select Email verification.",
+            )
+
         # Invalidate previous unused codes for this email
         db.query(PasswordResetCode).filter(
-            PasswordResetCode.email == email_key,
+            PasswordResetCode.email == user.email,
             PasswordResetCode.is_used == False,
         ).update({"is_used": True})
 
@@ -307,7 +376,9 @@ def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
         expires_at = now_dt + timedelta(minutes=15)
 
         entry = PasswordResetCode(
-            email=email_key,
+            email=user.email,
+            phone=recipient if channel in ("sms", "whatsapp") else user.phone,
+            channel=channel,
             code=reset_code,
             expires_at=expires_at,
             is_used=False,
@@ -316,52 +387,70 @@ def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
         db.commit()
 
         # Dispatch transactional notification
+        content = (
+            f"Hi {user.full_name},\n\n"
+            f"Your {BRAND.name} verification code is: {reset_code}\n\n"
+            f"This code will expire in 15 minutes. Never share this code with anyone.\n\n"
+            f"— {BRAND.name} Security Team"
+        )
         try:
             dispatch_notification(
-                channel="email",
-                recipient=user.email,
+                channel=channel,
+                recipient=recipient,
                 event_type="password_reset",
-                subject=f"{BRAND.name} Password Reset Code",
-                content=(
-                    f"Hi {user.full_name},\n\n"
-                    f"We received a request to reset your password for your {BRAND.name} account.\n\n"
-                    f"Your 6-digit verification code is: {reset_code}\n\n"
-                    f"This code will expire in 15 minutes.\n"
-                    f"If you did not make this request, you can safely ignore this email.\n\n"
-                    f"Warm regards,\n{BRAND.name} Security Team"
-                ),
+                subject=f"{BRAND.name} Verification Code",
+                content=content,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Notification dispatch failed: {e}")
 
+    masked_target = mask_identifier(recipient or identifier, channel)
+    channel_display = "email address" if channel == "email" else ("WhatsApp" if channel == "whatsapp" else "mobile number")
     return {
         "status": "success",
-        "message": "If an account exists with this email, a 6-digit verification code has been sent to your email address. Please check your inbox and spam folder.",
+        "channel": channel,
+        "message": f"If an account exists, a 6-digit verification code has been sent to your {channel_display} ({masked_target}).",
     }
 
 
 @router.post("/reset-password")
 def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
     """Verifies the reset code and updates the user's password."""
-    email_key = req.email.lower().strip()
+    identifier = (req.email or req.phone or "").strip()
+    if not identifier:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please provide your registered email or phone number.",
+        )
+
+    rate_key = identifier.lower()
     now = time.time()
-    recent = [t for t in RESET_ATTEMPTS[email_key] if now - t < RESET_RATE_LIMIT_WINDOW]
-    RESET_ATTEMPTS[email_key] = recent
+    recent = [t for t in RESET_ATTEMPTS[rate_key] if now - t < RESET_RATE_LIMIT_WINDOW]
+    RESET_ATTEMPTS[rate_key] = recent
     if len(recent) >= RESET_RATE_LIMIT_MAX:
+        oldest = min(recent)
+        remaining = max(1, int(RESET_RATE_LIMIT_WINDOW - (now - oldest)))
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many password reset attempts. Please wait 60 seconds and try again.",
+            detail=f"Too many password reset attempts. Please wait {remaining} seconds and try again.",
+            headers={"Retry-After": str(remaining)},
         )
-    RESET_ATTEMPTS[email_key].append(now)
+    RESET_ATTEMPTS[rate_key].append(now)
 
     clean_code = req.code.strip()
     now_dt = datetime.datetime.now(timezone.utc)
 
-    reset_record = db.query(PasswordResetCode).filter(
-        PasswordResetCode.email == email_key,
+    query = db.query(PasswordResetCode).filter(
         PasswordResetCode.code == clean_code,
         PasswordResetCode.is_used == False,
-    ).order_by(PasswordResetCode.created_at.desc()).first()
+    )
+    if req.email:
+        query = query.filter(PasswordResetCode.email == req.email.lower().strip())
+    elif req.phone:
+        clean_p = re.sub(r"\D", "", req.phone)[-10:]
+        query = query.filter(PasswordResetCode.phone.like(f"%{clean_p}%"))
+
+    reset_record = query.order_by(PasswordResetCode.created_at.desc()).first()
 
     if not reset_record:
         raise HTTPException(
@@ -369,7 +458,6 @@ def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
             detail="Invalid or expired verification code. Please check and try again.",
         )
 
-    # Check expiration (handle timezone-aware or naive datetimes gracefully)
     expires_at = reset_record.expires_at
     if expires_at.tzinfo is None:
         expires_at = expires_at.replace(tzinfo=timezone.utc)
@@ -382,23 +470,20 @@ def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
             detail="Verification code has expired. Please request a new code.",
         )
 
-    user = db.query(User).filter(User.email == email_key).first()
+    user = db.query(User).filter(User.email == reset_record.email).first()
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User account not found or disabled.",
         )
 
-    # Update password and consume reset code
     user.hashed_password = hash_password(req.new_password)
     reset_record.is_used = True
     db.commit()
 
-    # Clear rate limit history on success
-    RESET_ATTEMPTS.pop(email_key, None)
-    LOGIN_ATTEMPTS.pop(email_key, None)
+    RESET_ATTEMPTS.pop(rate_key, None)
+    LOGIN_ATTEMPTS.pop(user.email.lower(), None)
 
-    # Dispatch security alert notification
     try:
         dispatch_notification(
             channel="email",
@@ -409,7 +494,7 @@ def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
                 f"Hi {user.full_name},\n\n"
                 f"The password for your {BRAND.name} account was successfully updated.\n\n"
                 f"If you did not perform this action, please contact our support team immediately at {BRAND.supportEmail}.\n\n"
-                f"Warm regards,\n{BRAND.name} Security Team"
+                f"— {BRAND.name} Security Team"
             ),
         )
     except Exception:

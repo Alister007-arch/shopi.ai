@@ -29,6 +29,10 @@ import review_intelligence
 import audit_catalog
 
 from sqlalchemy.orm import Session
+try:
+    from backend.app.config import settings
+except ImportError:
+    from app.config import settings
 from backend.app.auth import auth_router, get_optional_current_user
 from backend.app.auth.security import get_current_user, get_current_admin
 from backend.app.db.session import get_db
@@ -89,6 +93,16 @@ app.include_router(order_actions_router)
 
 @app.on_event("startup")
 def on_app_startup():
+    # Fail fast on missing required environment variables (names only, never values)
+    settings.validate_environment()
+
+    # Log port and registered auth routes at startup
+    logger.info(f"[Server Startup] Listening on port: {settings.PORT} (environment: {settings.ENVIRONMENT})")
+    logger.info("[Server Startup] Registered authentication routes:")
+    for r in auth_router.routes:
+        methods_str = ", ".join(r.methods) if hasattr(r, "methods") else "ALL"
+        logger.info(f"  -> [{methods_str}] {r.path}")
+
     # Enforce policy validation on startup event as well
     try:
         load_store_policies()
@@ -137,16 +151,15 @@ def get_store_policies_api(section: Optional[str] = Query(None)):
     }
 
 # Environment-based strict CORS configuration
-CORS_ORIGINS_RAW = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000")
-ALLOWED_ORIGINS = [orig.strip() for orig in CORS_ORIGINS_RAW.split(",") if orig.strip()]
+ALLOWED_ORIGINS = settings.cors_origins
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-Request-ID"],
+    expose_headers=["X-Request-ID", "Retry-After"],
 )
 
 # Request ID & Structured Logging Middleware
@@ -175,10 +188,26 @@ async def request_id_and_logging_middleware(request: Request, call_next):
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request: Request, exc: HTTPException):
     req_id = getattr(request.state, "request_id", uuid.uuid4().hex[:12])
+    headers = {"X-Request-ID": req_id}
+    if exc.headers:
+        headers.update(exc.headers)
+
+    content = {
+        "status": "error",
+        "message": exc.detail,
+        "detail": exc.detail,
+        "request_id": req_id,
+    }
+    if "Retry-After" in headers:
+        try:
+            content["retry_after"] = int(headers["Retry-After"])
+        except ValueError:
+            pass
+
     return JSONResponse(
         status_code=exc.status_code,
-        content={"status": "error", "message": exc.detail, "detail": exc.detail, "request_id": req_id},
-        headers={"X-Request-ID": req_id},
+        content=content,
+        headers=headers,
     )
 
 @app.exception_handler(Exception)
@@ -329,9 +358,12 @@ def health_check():
         "status": "healthy",
         "service": "Trovi Agent Backend",
         "database": "shopai.db",
-        "version": "3.0.0",
+        "environment": settings.ENVIRONMENT,
+        "port": settings.PORT,
+        "version": "3.1.0",
         "currency": "INR",
         "catalog_source": "SQLite verified multi-category store",
+        "timestamp": int(time.time()),
     }
 
 
@@ -664,6 +696,8 @@ def get_api_me(
         "email": current_user.email,
         "full_name": current_user.full_name,
         "phone": current_user.phone or "",
+        "phone_consent": bool(getattr(current_user, "phone_consent", False)),
+        "phone_consent_at": current_user.phone_consent_at.isoformat() if getattr(current_user, "phone_consent_at", None) else None,
         "role": current_user.role,
         "orders_count": orders_count,
         "addresses_count": len(addresses),

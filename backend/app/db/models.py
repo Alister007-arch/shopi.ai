@@ -15,6 +15,8 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     full_name = Column(String(255), nullable=False)
     phone = Column(String(20), nullable=True)
+    phone_consent = Column(Boolean, default=False, nullable=False)
+    phone_consent_at = Column(DateTime, nullable=True)
     role = Column(String(50), default="customer", nullable=False)  # 'customer' | 'admin'
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
@@ -236,6 +238,8 @@ class PasswordResetCode(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), index=True, nullable=False)
+    phone = Column(String(50), nullable=True)
+    channel = Column(String(50), default="email", nullable=False)  # 'email' | 'sms' | 'whatsapp'
     code = Column(String(20), nullable=False)
     expires_at = Column(DateTime, nullable=False)
     is_used = Column(Boolean, default=False, nullable=False)

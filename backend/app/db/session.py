@@ -35,6 +35,24 @@ def init_db(engine_override=None):
     """Initializes schema tables using SQLAlchemy Base metadata."""
     active_engine = engine_override or get_engine()
     Base.metadata.create_all(bind=active_engine)
+    # Ensure additive columns for password_reset_codes and users
+    try:
+        from sqlalchemy import text
+        with active_engine.connect() as conn:
+            for col, col_type in [("phone", "VARCHAR(50)"), ("channel", "VARCHAR(50) DEFAULT 'email'")]:
+                try:
+                    conn.execute(text(f"ALTER TABLE password_reset_codes ADD COLUMN {col} {col_type}"))
+                    conn.commit()
+                except Exception:
+                    pass
+            for col, col_type in [("phone_consent", "BOOLEAN DEFAULT 0"), ("phone_consent_at", "DATETIME")]:
+                try:
+                    conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {col_type}"))
+                    conn.commit()
+                except Exception:
+                    pass
+    except Exception:
+        pass
 
 
 def get_db():
