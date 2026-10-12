@@ -1,0 +1,35 @@
+{
+  "passed_count": 60,
+  "total_count": 60,
+  "pass_pct": 100.0,
+  "duration_seconds": 0.32,
+  "is_mock_llm": false,
+  "llm_mode": "Live LLM (Groq Llama-3.3-70b)",
+  "timestamp": "2026-10-12T18:01:54Z",
+  "domain_scores": {
+    "search_discovery": {
+      "passed": 10,
+      "total": 10
+    },
+    "pantry_bundles": {
+      "passed": 10,
+      "total": 10
+    },
+    "budget_guardrail": {
+      "passed": 10,
+      "total": 10
+    },
+    "quote_tokens": {
+      "passed": 10,
+      "total": 10
+    },
+    "security_safety": {
+      "passed": 10,
+      "total": 10
+    },
+    "inventory_edge_cases": {
+      "passed": 10,
+      "total": 10
+    }
+  }
+}

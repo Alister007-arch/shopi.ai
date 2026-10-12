@@ -1,5 +1,5 @@
 """
-Review Intelligence System for ShopAI.
+Review Intelligence System for Trovi.
 Analyzes verified customer reviews from SQLite database (`shopai.db`),
 extracts recurring positive/negative themes, calculates ratings distribution,
 enforces sample size disclosures, and separates verified evidence from speculation.
@@ -63,7 +63,7 @@ def analyze_product_reviews(product_id: int) -> Dict[str, Any]:
     Performs rigorous, evidence-based review analysis for a specific product.
     
     Rules enforced:
-    1. Retrieves real reviews from shopai.db.
+    1. Retrieves real reviews from database.
     2. Validates rating bounds (1.0 to 5.0) and non-empty text.
     3. Deduplicates identical reviews so duplicates aren't counted twice.
     4. Calculates true sample size and rating distribution.

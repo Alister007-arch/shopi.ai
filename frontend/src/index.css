@@ -1,11 +1,10 @@
 /* ==========================================================================
-   MOSS — Design System & Global Styles
-   Inspired by "Moss E-commerce Website" by Orix Creative on Dribbble
-   Minimalist, organic luxury, Japanese-Scandinavian earthy refinement.
+   Trovi — Design System & Global Styles
+   Inspired by minimalist, organic luxury, Japanese-Scandinavian earthy refinement.
    ========================================================================== */
 
 :root {
-  /* Wireframe MOSS Authentic Palette */
+  /* Trovi Authentic Palette */
   --bg-primary: #f8f7f4;
   --bg-secondary: #f0eee6;
   --bg-card: #ffffff;
@@ -371,3 +370,102 @@ h1, h2, h3, h4, h5, h6 {
     opacity: 1;
   }
 }
+
+/* Skeleton Loading Shimmer */
+@keyframes shimmerWave {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(240, 238, 230, 0.4) 0%,
+    rgba(255, 255, 255, 0.8) 50%,
+    rgba(240, 238, 230, 0.4) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmerWave 1.6s infinite;
+}
+
+/* WCAG 2.1 AA Accessible Focus States & Touch Targets */
+:focus-visible {
+  outline: 2px solid var(--moss-deep);
+  outline-offset: 2px;
+}
+
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--moss-deep);
+  outline-offset: 2px;
+}
+
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Floating Agent Launcher Tab & Window (Bottom-Right Corner) */
+.agent-floating-tab {
+  animation: agentPulse 3s infinite ease-in-out;
+  cursor: pointer;
+  user-select: none;
+}
+
+.agent-floating-tab:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 14px 36px rgba(28, 48, 36, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+.agent-floating-tab:active {
+  transform: translateY(0) scale(0.98);
+}
+
+@keyframes agentPulse {
+  0%, 100% {
+    box-shadow: 0 8px 24px rgba(28, 48, 36, 0.32), 0 0 0 0 rgba(94, 122, 98, 0.35);
+  }
+  50% {
+    box-shadow: 0 12px 32px rgba(28, 48, 36, 0.42), 0 0 0 7px rgba(94, 122, 98, 0);
+  }
+}
+
+@keyframes agentPopIn {
+  from {
+    opacity: 1;
+    transform: translateY(18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Dedicated Search Results Layout & Guaranteed Card Visibility */
+.results-grid {
+  min-height: 450px;
+  overflow: visible !important;
+  position: relative;
+}
+
+.product-card {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: flex !important;
+  flex-direction: column;
+  overflow: visible !important;
+}
+
+#results-page-container {
+  min-height: 60vh;
+  overflow: visible !important;
+}
+
+
+

@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for ShopAI (Vite Frontend + FastAPI Backend)
+# Multi-stage Dockerfile for Trovi (Vite Frontend + FastAPI Backend)
 # Stage 1: Build the React frontend
 FROM node:20-alpine AS frontend-builder
 WORKDIR /app/frontend

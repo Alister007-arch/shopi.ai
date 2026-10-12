@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# ShopAI Cloud Deployment Build Script
+# Trovi Cloud Deployment Build Script
 set -o errexit
 
 echo "========================================="
-echo "Building ShopAI Full-Stack Application"
+echo "Building Trovi Full-Stack Application"
 echo "========================================="
 
 echo "[1/3] Building React Frontend..."

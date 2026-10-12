@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   X, Star, ShoppingBag, MessageSquare, Check, ShieldCheck,
-  ChevronDown, ChevronRight, Leaf, Zap, Package, ArrowRight, Heart
+  ChevronDown, ChevronRight, Leaf, Zap, Package, ArrowRight, Heart, MapPin, Truck
 } from 'lucide-react';
 import { API_BASE } from '../config';
+import ProductImage from './ProductImage';
+import { lookupPincode } from '../utils/deliveryEngine';
+import { BRAND } from '../config/brand';
 
 export default function ProductDetailModal({
   product,
@@ -13,14 +16,24 @@ export default function ProductDetailModal({
   formatPrice = (p, inr) => inr ? `₹${inr.toLocaleString('en-IN')}` : `$${p.toFixed(2)}`,
   currency = 'INR',
   allProducts = [],
+  currentUser = null,
+  onOpenAuthModal = null,
+  onBuyNow = null,
 }) {
-  const [selectedSize, setSelectedSize] = useState('500 g');
-  const [pinCodeInput, setPinCodeInput] = useState('');
-  const [deliveryStatus, setDeliveryStatus] = useState(null);
-  const [activeAccordion, setActiveAccordion] = useState('description'); // 'description', 'nutrition', 'returns'
+  const [selectedSize, setSelectedSize] = useState('Default');
+  const [pinCodeInput, setPinCodeInput] = useState('560034');
+  const [deliveryStatus, setDeliveryStatus] = useState(() => lookupPincode('560034'));
+  const [activeAccordion, setActiveAccordion] = useState('description'); // 'description', 'specs', 'returns'
   const [selectedImgIdx, setSelectedImgIdx] = useState(0);
 
   if (!product) return null;
+
+  const pCat = (product.category || '').toLowerCase();
+  const isClothing = ['clothing', 'fashion', 'apparel', 'innerwear'].includes(pCat);
+  const isLaptop = ['laptops', 'ultrabooks', 'workstations', 'student-laptops'].includes(pCat);
+  const isElectronics = ['electronics', 'audio', 'headphones', 'gadgets'].includes(pCat);
+  const isHomeKitchen = ['home-kitchen', 'kitchen-appliances', 'cookware', 'household'].includes(pCat);
+  const isPersonalCare = ['personal-care', 'haircare', 'skincare', 'grooming'].includes(pCat);
 
   const inrPrice = product.price_inr || Math.round(product.price * 85);
   const mrpPrice = Math.round(inrPrice * 1.25);
@@ -34,12 +47,9 @@ export default function ProductDetailModal({
   const relatedProducts = allProducts.filter((p) => p.id !== product.id && p.category === product.category).slice(0, 4);
 
   const handleCheckPin = (e) => {
-    e.preventDefault();
-    if (pinCodeInput.trim().length >= 5) {
-      setDeliveryStatus('✓ Delivery by tomorrow, 8:00 AM via Eco Fleet (Free delivery)');
-    } else {
-      setDeliveryStatus('Please enter a valid 6-digit PIN code.');
-    }
+    if (e) e.preventDefault();
+    const info = lookupPincode(pinCodeInput);
+    setDeliveryStatus(info);
   };
 
   const handleAddBundle = () => {
@@ -120,10 +130,11 @@ export default function ProductDetailModal({
               background: 'var(--bg-card-muted)',
               border: '1px solid var(--moss-border)',
             }}>
-              <img
+              <ProductImage
                 src={product.image_url}
                 alt={product.name}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                width={450}
+                height={380}
               />
             </div>
 
@@ -144,10 +155,11 @@ export default function ProductDetailModal({
                     opacity: selectedImgIdx === idx ? 1 : 0.65,
                   }}
                 >
-                  <img
+                  <ProductImage
                     src={product.image_url}
-                    alt="Thumbnail"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    alt={`${product.name} thumbnail ${idx + 1}`}
+                    width={64}
+                    height={64}
                   />
                 </div>
               ))}
@@ -204,24 +216,32 @@ export default function ProductDetailModal({
               Inclusive of all taxes
             </span>
 
-            {/* Pack Size Pills */}
+            {/* Category-Aware Variant & Option Pills */}
             <div style={{ marginTop: 8 }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 8 }}>
-                Pack size
+                {isClothing ? 'Select size' : isLaptop ? 'Configuration' : isElectronics ? 'Variant' : 'Pack size'}
               </label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {['250 g', '500 g', '1 kg'].map((size) => (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {(isClothing
+                  ? ['S', 'M', 'L', 'XL']
+                  : isLaptop
+                  ? ['16GB RAM · 512GB SSD', '32GB RAM · 1TB SSD']
+                  : isElectronics
+                  ? ['Standard Edition', 'Pro Edition']
+                  : ['250 g', '500 g', '1 kg']
+                ).map((size) => (
                   <button
                     key={size}
+                    type="button"
                     onClick={() => setSelectedSize(size)}
                     style={{
-                      padding: '8px 18px',
+                      padding: '8px 16px',
                       borderRadius: 'var(--radius-sm)',
-                      border: selectedSize === size ? '2px solid var(--moss-deep)' : '1px solid var(--moss-border)',
-                      background: selectedSize === size ? 'var(--moss-tint)' : '#ffffff',
+                      border: (selectedSize === size || (selectedSize === 'Default' && (size === '500 g' || size === 'M' || size.startsWith('16GB') || size.startsWith('Standard')))) ? '2px solid var(--moss-deep)' : '1px solid var(--moss-border)',
+                      background: (selectedSize === size || (selectedSize === 'Default' && (size === '500 g' || size === 'M' || size.startsWith('16GB') || size.startsWith('Standard')))) ? 'var(--moss-tint)' : '#ffffff',
                       color: 'var(--moss-deep)',
                       fontWeight: 700,
-                      fontSize: '0.85rem',
+                      fontSize: '0.82rem',
                       cursor: 'pointer',
                     }}
                   >
@@ -255,9 +275,17 @@ export default function ProductDetailModal({
               </button>
 
               <button
+                id="product-buy-now-btn"
                 onClick={() => {
                   onAddToCart(product, 1);
                   onClose();
+                  if (!currentUser) {
+                    if (onOpenAuthModal) {
+                      onOpenAuthModal({ message: 'Sign in to place your order', returnTo: 'checkout' });
+                    }
+                  } else if (onBuyNow) {
+                    onBuyNow(product);
+                  }
                 }}
                 style={{
                   flex: 1,
@@ -276,25 +304,27 @@ export default function ProductDetailModal({
               </button>
             </div>
 
-            {/* Delivery Check Form */}
+            {/* Genuine Delivery Check Form */}
             <form onSubmit={handleCheckPin} style={{ marginTop: 10 }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
-                Check delivery
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--moss-deep)', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                <Truck size={14} color="var(--moss-deep)" /> Check Estimated Delivery & Serviceability
               </label>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
                   type="text"
-                  placeholder="Enter PIN code"
+                  placeholder="Enter 6-digit PIN code"
                   value={pinCodeInput}
-                  onChange={(e) => setPinCodeInput(e.target.value)}
+                  onChange={(e) => setPinCodeInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   maxLength={6}
                   style={{
                     flex: 1,
                     padding: '9px 14px',
                     borderRadius: 'var(--radius-sm)',
                     border: '1px solid var(--moss-border)',
-                    fontSize: '0.85rem',
+                    fontSize: '0.88rem',
+                    fontWeight: 700,
                     outline: 'none',
+                    color: 'var(--moss-deep)',
                   }}
                 />
                 <button
@@ -310,17 +340,46 @@ export default function ProductDetailModal({
                     cursor: 'pointer',
                   }}
                 >
-                  Check
+                  Verify
                 </button>
               </div>
+
               {deliveryStatus && (
-                <p style={{ fontSize: '0.78rem', color: 'var(--moss-sage)', marginTop: 6, fontWeight: 600 }}>
-                  {deliveryStatus}
-                </p>
+                <div style={{
+                  marginTop: 8,
+                  padding: '10px 12px',
+                  background: deliveryStatus.valid ? 'var(--moss-tint)' : '#fef2f2',
+                  border: deliveryStatus.valid ? '1px solid var(--moss-border)' : '1px solid #fecaca',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.78rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                }}>
+                  {deliveryStatus.valid ? (
+                    <>
+                      <div style={{ fontWeight: 800, color: 'var(--moss-deep)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Check size={14} color="var(--moss-forest)" />
+                        <span>Serviceable in {deliveryStatus.city}, {deliveryStatus.state} ({deliveryStatus.pin})</span>
+                      </div>
+                      <div style={{ color: 'var(--text-secondary)' }}>
+                        {deliveryStatus.estimatedDeliveryText}
+                      </div>
+                      <div style={{ color: 'var(--moss-sage)', fontWeight: 600, display: 'flex', gap: 12, marginTop: 2 }}>
+                        <span>✓ Free delivery above ₹499</span>
+                        <span>✓ COD & UPI Available</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ color: '#b91c1c', fontWeight: 600 }}>
+                      {deliveryStatus.message}
+                    </div>
+                  )}
+                </div>
               )}
             </form>
 
-            {/* Purity Guarantee Strip */}
+            {/* Category-Aware Trust & Warranty Strip */}
             <div style={{
               display: 'flex',
               gap: 16,
@@ -329,10 +388,20 @@ export default function ProductDetailModal({
               fontWeight: 600,
               paddingTop: 8,
               borderTop: '1px solid var(--moss-border)',
+              flexWrap: 'wrap',
             }}>
-              <span>✓ Certified farm purity</span>
-              <span>✓ Zero additives</span>
-              <span>✓ Easy returns</span>
+              {product.is_organic ? (
+                <>
+                  <span>✓ Certified farm purity</span>
+                  <span>✓ Zero artificial additives</span>
+                </>
+              ) : (
+                <>
+                  <span>✓ 100% Genuine brand assured</span>
+                  <span>✓ Brand warranty</span>
+                </>
+              )}
+              <span>✓ {isLaptop || isElectronics ? '7-Day replacement first' : isClothing ? '7-Day easy returns' : '48-Hr freshness guarantee'}</span>
             </div>
 
             {/* Questions AI Box */}
@@ -348,7 +417,7 @@ export default function ProductDetailModal({
               marginTop: 4,
             }}>
               <span style={{ fontSize: '0.82rem', fontWeight: 500 }}>
-                Questions? Ask the Moss Concierge about this product.
+                Questions? Ask {BRAND.assistantName} about this product.
               </span>
               <button
                 onClick={() => {
@@ -372,7 +441,7 @@ export default function ProductDetailModal({
           </div>
         </div>
 
-        {/* 3. Accordions (Description & sourcing, Nutrition, Returns) */}
+        {/* 3. Accordions (Description, Specs/Nutrition, Returns) */}
         <div style={{ display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--moss-border)' }}>
           {/* Accordion 1: Description */}
           <div style={{ borderBottom: '1px solid var(--moss-border)' }}>
@@ -396,16 +465,16 @@ export default function ProductDetailModal({
               <div style={{ paddingBottom: 16, fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                 <p>{product.description}</p>
                 <p style={{ marginTop: 8 }}>
-                  <strong>Origin & Processing:</strong> Sourced directly from certified heritage bio-reserves. Processed via traditional cold extraction without pasteurization or artificial preservatives.
+                  <strong>Origin & Processing:</strong> {isLaptop || isElectronics ? 'Manufactured by authorized global brand partners with strict quality assurance standards.' : isClothing ? 'Tailored using verified ethically sourced materials and fine finishing.' : 'Sourced directly from verified growers and heritage reserves.'}
                 </p>
               </div>
             )}
           </div>
 
-          {/* Accordion 2: Nutrition */}
+          {/* Accordion 2: Category-Aware Specifications or Nutrition */}
           <div style={{ borderBottom: '1px solid var(--moss-border)' }}>
             <div
-              onClick={() => setActiveAccordion(activeAccordion === 'nutrition' ? '' : 'nutrition')}
+              onClick={() => setActiveAccordion(activeAccordion === 'specs' ? '' : 'specs')}
               style={{
                 padding: '16px 0',
                 display: 'flex',
@@ -417,13 +486,39 @@ export default function ProductDetailModal({
                 color: 'var(--moss-deep)',
               }}
             >
-              <span>▶ Nutrition & ingredients</span>
-              <ChevronDown size={18} style={{ transform: activeAccordion === 'nutrition' ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
+              <span>
+                {isLaptop || isElectronics
+                  ? '▶ Technical specifications & warranty'
+                  : isClothing
+                  ? '▶ Fabric, fit & care instructions'
+                  : '▶ Nutrition & ingredients'}
+              </span>
+              <ChevronDown size={18} style={{ transform: activeAccordion === 'specs' ? 'rotate(180deg)' : 'rotate(0)', transition: 'transform 0.2s' }} />
             </div>
-            {activeAccordion === 'nutrition' && (
+            {activeAccordion === 'specs' && (
               <div style={{ paddingBottom: 16, fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                <p><strong>Ingredients:</strong> 100% Raw, Unfiltered Single-Origin {product.name}.</p>
-                <p style={{ marginTop: 6 }}><strong>Nutritional Profile (per 100g):</strong> Energy 304 kcal, Protein 0.3g, Carbohydrates 82.4g, Zero Added Refined Sugar.</p>
+                {isLaptop ? (
+                  <>
+                    <p><strong>Hardware Architecture:</strong> {product.specifications || 'Flagship processor cores, high-throughput memory & NVMe PCIe SSD.'}</p>
+                    <p style={{ marginTop: 6 }}><strong>Display & Battery:</strong> Premium high-resolution panel with all-day battery life.</p>
+                    <p style={{ marginTop: 6 }}><strong>Brand Warranty:</strong> 1-Year Official Manufacturer Warranty with on-site support.</p>
+                  </>
+                ) : isElectronics ? (
+                  <>
+                    <p><strong>Acoustic Specs:</strong> {product.specifications || 'Precision audio drivers, active noise cancellation & Bluetooth 5.3.'}</p>
+                    <p style={{ marginTop: 6 }}><strong>Warranty:</strong> 1-Year Official Brand Warranty.</p>
+                  </>
+                ) : isClothing ? (
+                  <>
+                    <p><strong>Fabric Composition:</strong> {product.specifications || '100% Certified Organic Cotton / Handloom Pure Linen.'}</p>
+                    <p style={{ marginTop: 6 }}><strong>Care Instructions:</strong> Machine wash cold with similar colors. Do not bleach. Line dry.</p>
+                  </>
+                ) : (
+                  <>
+                    <p><strong>Ingredients:</strong> 100% {product.is_organic ? 'Certified Organic' : 'Pure'} {product.name}.</p>
+                    <p style={{ marginTop: 6 }}><strong>Nutritional Profile (per 100g):</strong> {product.specifications || 'Zero added artificial preservatives, pure artisanal extraction.'}</p>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -448,7 +543,15 @@ export default function ProductDetailModal({
             </div>
             {activeAccordion === 'returns' && (
               <div style={{ paddingBottom: 16, fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                <p>100% Satisfaction Guarantee. If you are not delighted with the purity or taste, enjoy instant refund or replacement within 7 days of delivery.</p>
+                {isLaptop ? (
+                  <p><strong>Laptops & Computing:</strong> 7-day replacement window for defective, damaged, or dead-on-arrival items. Brand warranty covers post-delivery hardware issues. Return requests undergo technical review.</p>
+                ) : isElectronics ? (
+                  <p><strong>Electronics:</strong> 7-day window for defective, wrong, or damaged items. Replacement dispatched first; refunds provided if replacement is out of stock.</p>
+                ) : isClothing ? (
+                  <p><strong>Fashion & Apparel:</strong> 7-day returns or exchanges for unworn items with tags and original packaging intact. Note: Innerwear is hygiene-sealed and non-returnable unless defective.</p>
+                ) : (
+                  <p><strong>Grocery & Essentials:</strong> 48 hours from delivery to report any damaged, leaking, expired, or wrong items with a photo. Instant replacement or refund.</p>
+                )}
               </div>
             )}
           </div>
@@ -572,7 +675,7 @@ export default function ProductDetailModal({
                     }}
                   >
                     <div style={{ height: 130, borderRadius: 'var(--radius-sm)', overflow: 'hidden', background: 'var(--bg-card-muted)' }}>
-                      <img src={rel.image_url} alt={rel.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <ProductImage src={rel.image_url} alt={rel.name} width={180} height={130} />
                     </div>
                     <h5 style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--moss-deep)', lineHeight: 1.3 }}>
                       {rel.name}

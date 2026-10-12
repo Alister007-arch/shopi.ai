@@ -6,24 +6,42 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "shopai.db")
 
 # 100% Verified, high-resolution product images tailored to each exact product identity (HTTP 200 OK verified)
 # 100% Verified, locally hosted high-resolution product images tailored to each exact real-world identity
-PRODUCT_IMAGES = {i: f"/products/prod_{i:02d}.jpg" for i in range(1, 78)}
+PRODUCT_IMAGES = {i: f"/products/prod_{i:02d}.jpg" for i in range(1, 160)}
 
-def create_database():
-    conn = sqlite3.connect(DB_PATH)
+def create_database(db_path: str = None):
+    target_path = db_path or os.environ.get("SHOPI_DB_PATH", DB_PATH)
+    conn = sqlite3.connect(target_path)
     cursor = conn.cursor()
 
     # Recreate tables with expanded schema
+    cursor.execute("DROP TABLE IF EXISTS categories")
     cursor.execute("DROP TABLE IF EXISTS products")
     cursor.execute("DROP TABLE IF EXISTS orders")
     cursor.execute("DROP TABLE IF EXISTS order_items")
+
+    # Categories hierarchy table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS categories (
+            id INTEGER PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            slug VARCHAR(100) UNIQUE NOT NULL,
+            description TEXT,
+            icon VARCHAR(100),
+            parent_id INTEGER,
+            policy_group VARCHAR(50) DEFAULT 'default' NOT NULL,
+            display_order INTEGER DEFAULT 0 NOT NULL,
+            FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL
+        )
+    """)
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS products (
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL,
             category TEXT NOT NULL,
+            category_id INTEGER,
             subcategory TEXT,
-            brand TEXT DEFAULT 'ShopAI Curated',
+            brand TEXT DEFAULT 'MOSS Curated',
             price REAL NOT NULL,
             price_inr INTEGER NOT NULL,
             currency TEXT DEFAULT 'INR',
@@ -37,7 +55,10 @@ def create_database():
             badge TEXT DEFAULT 'Popular',
             is_demo INTEGER DEFAULT 1,
             supplier TEXT DEFAULT 'Verified Partner',
-            last_updated TEXT DEFAULT (datetime('now'))
+            version INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT (datetime('now')),
+            last_updated TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
         )
     """)
 
@@ -59,8 +80,9 @@ def create_database():
         CREATE TABLE IF NOT EXISTS orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             order_number TEXT UNIQUE,
+            user_id INTEGER,
             customer_name TEXT DEFAULT 'Valued Customer',
-            customer_email TEXT DEFAULT 'shopper@shopai.internal',
+            customer_email TEXT DEFAULT 'shopper@trovi.internal',
             customer_address TEXT DEFAULT 'Flat 402, Green Park Avenue, Bengaluru 560034',
             items_summary TEXT NOT NULL,
             subtotal REAL NOT NULL,
@@ -72,9 +94,26 @@ def create_database():
             currency TEXT DEFAULT 'INR',
             status TEXT DEFAULT 'Confirmed',
             payment_method TEXT DEFAULT 'Demo Pay / COD',
+            billing_address TEXT,
+            buyer_gstin TEXT,
+            buyer_company TEXT,
+            discount_inr INTEGER DEFAULT 0,
             ordered_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
     """)
+
+    # Ensure schema migrations for existing orders table
+    for col_name, col_sql in [
+        ("user_id", "INTEGER"),
+        ("billing_address", "TEXT"),
+        ("buyer_gstin", "TEXT"),
+        ("buyer_company", "TEXT"),
+        ("discount_inr", "INTEGER DEFAULT 0"),
+    ]:
+        try:
+            cursor.execute(f"ALTER TABLE orders ADD COLUMN {col_name} {col_sql}")
+        except Exception:
+            pass
 
     # Create order items table
     cursor.execute("""
@@ -90,6 +129,64 @@ def create_database():
             total_price_inr INTEGER NOT NULL,
             FOREIGN KEY (order_id) REFERENCES orders(id),
             FOREIGN KEY (product_id) REFERENCES products(id)
+        )
+    """)
+
+    # Create idempotency keys table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS idempotency_keys (
+            key TEXT PRIMARY KEY,
+            order_id INTEGER NOT NULL,
+            created_at TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (order_id) REFERENCES orders(id)
+        )
+    """)
+
+    # Create order audit logs table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS order_audit_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            order_id INTEGER,
+            order_number TEXT NOT NULL,
+            user_id INTEGER,
+            action TEXT NOT NULL,
+            old_state TEXT,
+            new_state TEXT NOT NULL,
+            reason TEXT,
+            performed_by TEXT DEFAULT 'customer',
+            metadata_json TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+
+    # Create support tickets table for human-review escalations
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS support_tickets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticket_number TEXT UNIQUE NOT NULL,
+            order_number TEXT NOT NULL,
+            user_id INTEGER,
+            issue_type TEXT NOT NULL,
+            status TEXT DEFAULT 'needs_human_review',
+            description TEXT,
+            photo_url TEXT,
+            refund_amount_inr INTEGER,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+
+    # Create action confirmation tokens table (10-minute validity)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS action_confirmation_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            token TEXT UNIQUE NOT NULL,
+            user_id INTEGER NOT NULL,
+            order_number TEXT NOT NULL,
+            action TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            is_used INTEGER DEFAULT 0,
+            expires_at TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
         )
     """)
 
@@ -203,23 +300,120 @@ def create_database():
         (75, "Tom Ford Tobacco Vanille Eau De Parfum (100ml)", "luxury", "Haute Parfumerie", "Tom Ford", 428.00, 36000, "Opulent artisanal private blend fragrance capturing warm tobacco leaf, aromatic spices, creamy tonka bean, and sweet vanilla sap.", 0, "Niche Fragrance", json.dumps({"volume": "100ml Eau De Parfum Flacon", "notes_top": "Tobacco Leaf, Spicy Notes", "notes_heart": "Tonka Bean, Tobacco Blossom, Vanilla, Cacao", "notes_base": "Dry Fruit Accord, Rich Wood Sap"}), "Unisex masterpiece with beast-mode 14+ hour longevity and luxury sillage", 14),
         (76, "Royal Kashmiri Mongra Saffron (Grade 1 Pure Kesar, 5g Glass Jar)", "luxury", "Royal Gourmet", "Kashmir Crown", 29.75, 2499, "GI-tagged Grade 1 pure Mongra saffron stigma harvested by hand in Pampore, Kashmir. Highest natural crocin color index (>240).", 1, "GI Tagged Grade 1", json.dumps({"weight": "5 Grams Airtight Glass Jar", "crocin_color": "> 240 (ISO 3632 Category 1)", "origin": "Pampore, Kashmir, India"}), "100% pure dried red stigmas, zero yellow style threads, laboratory certified", 40),
         (77, "Louis Vuitton Neverfull MM Monogram Canvas Tote Bag", "luxury", "Designer Fashion", "Louis Vuitton", 2202.00, 185000, "Timeless luxury tote in Monogram coated canvas with natural cowhide leather trim, gold-tone hardware, and removable zippered pouch.", 0, "Couture Essential", json.dumps({"dimensions": "31 x 28 x 14 cm (Length x Height x Width)", "material": "Monogram Coated Canvas with Cowhide Trim", "lining": "Striped Textile Fabric Lining", "includes": "Removable Zipped Monogram Pouch"}), "Side laces to cinch for a sleek look or loosen for a casual tote, golden brass hardware", 6),
+        
+        # --- Fresh Farm Vegetables (12: 78-89) ---
+        (78, "Organic Crown Broccoli (500g)", "fruits-vegetables", "Fresh Vegetables", "Valley Greens", 1.05, 89, "Crisp, deep green organic broccoli crowns harvested fresh from Himachal hills. Rich in sulforaphane, vitamin C, and dietary fiber.", 1, "Farm Fresh", json.dumps({"weight": "500g", "origin": "Himachal Pradesh", "grade": "Grade A Organic", "shelf_life": "5 Days refrigerated"}), "Cold-stored at 4°C, zero chemical pesticides", 45),
+        (79, "Tri-Color Bell Peppers (500g)", "fruits-vegetables", "Fresh Vegetables", "GreenHouse Organics", 1.40, 119, "Vibrant trio of red, yellow, and green sweet bell peppers grown in controlled greenhouses. Crunchy, juicy, and packed with carotenoids and vitamin C.", 1, "Hydroponic", json.dumps({"weight": "500g (3 Peppers)", "varieties": "Red, Yellow, Green", "pesticide_free": True, "shelf_life": "7 Days"}), "Protected greenhouse harvest, pesticide-free", 35),
+        (80, "English Seedless Cucumbers (500g)", "fruits-vegetables", "Fresh Vegetables", "Verde Farms", 0.53, 45, "Tender, thin-skinned English seedless cucumbers with sweet, crisp flesh and zero bitterness. Pre-washed and perfect for salads and detox water.", 1, "Crisp Crunch", json.dumps({"weight": "500g (2-3 pieces)", "wax_free": True, "seedless": True, "shelf_life": "6 Days"}), "Washed in ozone water, zero wax coating", 50),
+        (81, "Fresh Button Mushrooms (200g Pack)", "fruits-vegetables", "Fresh Vegetables", "Himalayan Spores", 0.76, 65, "Plump, firm white button mushrooms grown in sanitized climate-controlled chambers. Dense in umami flavor, vitamin D, and plant antioxidants.", 1, "Superfood", json.dumps({"weight": "200g Punnet", "type": "Agaricus bisporus", "chemical_free": True, "shelf_life": "4 Days chilled"}), "Hygienic sterile growth medium, untouched packing", 30),
+        (82, "Organic Red Carrots (1kg)", "fruits-vegetables", "Fresh Vegetables", "SunValley Farm", 0.65, 55, "Naturally sweet and crunchy farm-pulled Indian red carrots. Loaded with beta-carotene, perfect for fresh juicing, salads, and winter halwa.", 1, "Soil Sweet", json.dumps({"weight": "1 kg", "variety": "Desi Red Pusa", "washed": True, "shelf_life": "10 Days"}), "Sun-dried field cured, washed and sorted", 60),
+        (83, "Farm Fresh Cauliflower (1 Whole)", "fruits-vegetables", "Fresh Vegetables", "Mandi Fresh", 0.58, 49, "Dense, snow-white cauliflower head surrounded by fresh protective green leaves. Hand-inspected for zero blemish, ideal for roasts and curries.", 0, "Handpicked", json.dumps({"weight": "~600-800g", "curd_density": "Compact Snow White", "shelf_life": "6 Days"}), "Carefully leaf-wrapped, zero worms or dirt", 40),
+        (84, "Tender French Green Beans (500g)", "fruits-vegetables", "Fresh Vegetables", "Valley Greens", 0.69, 59, "Crisp stringless tender French green beans. Hand-harvested early morning for snap crunch, high in dietary fiber, folates, and minerals.", 1, "Dawn Harvest", json.dumps({"weight": "500g", "stringless": True, "freshness": "Grade A", "shelf_life": "5 Days"}), "Dawn harvested, zero fibrous strings", 45),
+        (85, "Fresh Coriander & Mint Leaves Combo (250g)", "fruits-vegetables", "Fresh Vegetables", "HerbAroma", 0.34, 29, "Aromatic bunch of fresh dark green coriander (dhania) and refreshing garden mint (pudina). Root-trimmed, ozone-washed, full of essential oils.", 1, "Aromatic Fresh", json.dumps({"weight": "250g Combo", "washed": True, "ozone_purified": True, "shelf_life": "4 Days"}), "Root-trimmed, hydro-cooled for long freshness", 70),
+        (86, "Fresh Tender Okra / Bhindi (500g)", "fruits-vegetables", "Fresh Vegetables", "Mandi Fresh", 0.53, 45, "Bright green, tender ladyfingers with soft tips that snap easily. Low in calories, rich in mucilage and vitamin C for delicious stir-fries.", 1, "Tender Pick", json.dumps({"weight": "500g", "grade": "Small Tender", "snap_tested": True, "shelf_life": "5 Days"}), "Hand snap-tested for peak tenderness", 55),
+        (87, "Fresh Green Chillies & Mountain Ginger (200g)", "fruits-vegetables", "Fresh Vegetables", "Mandi Fresh", 0.41, 35, "Spicy Indian green chillies (Hari Mirch) paired with fibrous, juicy Himalayan ginger (Adrak). The quintessential seasoning base for daily Indian cuisine.", 1, "Daily Flavor", json.dumps({"weight": "200g (100g Chilli + 100g Ginger)", "pungency": "Medium-High", "shelf_life": "10 Days"}), "Spicy pungent aromatics, cleaned and dry-packed", 65),
+        (88, "Farm Fresh Bottle Gourd / Lauki (1 Whole)", "fruits-vegetables", "Fresh Vegetables", "SunValley Farm", 0.46, 39, "Light green, tender and cooling bottle gourd (~800g). Rich in dietary fiber, potassium and water content, ideal for light curries and juices.", 1, "Cooling Detox", json.dumps({"weight": "~800g", "tenderness": "Super Tender Thin Skin", "shelf_life": "7 Days"}), "Early harvested, delicate skin with high water content", 50),
+        (89, "Fresh Sweet Green Peas (500g)", "fruits-vegetables", "Fresh Vegetables", "Himachal Fresh", 0.76, 65, "Plump, sweet green peas in fresh pods from Himachal slopes. Bursting with natural sugars, plant protein, and vibrant green color.", 1, "Seasonal Sweet", json.dumps({"weight": "500g In-Pod", "origin": "Himachal Pradesh", "sweetness": "Natural High Brix", "shelf_life": "5 Days"}), "Cold climate mountain pods, hand-sorted for fullness", 40),
+
+        # --- Additional Farm Vegetables (6: 90-95) ---
+        (90, "Fresh Purple Eggplant / Brinjal (500g)", "fruits-vegetables", "Fresh Vegetables", "Mandi Fresh", 0.46, 39, "Glossy deep-purple Indian baingan with tender flesh and minimal seeds. Perfect for bharwa baingan, roasted baingan bharta, and sambar.", 1, "Farm Fresh", json.dumps({"weight": "500g (~2-3 eggplants)", "variety": "Desi Purple Oval", "shelf_life": "5 Days"}), "Firm glossy skin, zero seeds, pesticide safe", 50),
+        (91, "Fresh Desi Garlic Bulbs (250g)", "fruits-vegetables", "Fresh Vegetables", "Mandi Fresh", 0.56, 48, "Pungent and potent small-clove Desi garlic bulbs. High allicin content for immune support, rich aroma for Indian tadkas and gravies.", 1, "High Pungency", json.dumps({"weight": "250g Net", "cloves": "Small High-Allicin", "shelf_life": "30 Days dry"}), "Sun-cured paper-white bulbs, zero artificial bleaching", 65),
+        (92, "Farm Fresh Green Cabbage (1 Whole)", "fruits-vegetables", "Fresh Vegetables", "SunValley Farm", 0.40, 34, "Dense and tightly layered crisp green cabbage (~700g). Rich in vitamins K, C, and dietary fiber, ideal for stir-fries, salads, and slaws.", 1, "Crisp Crunch", json.dumps({"weight": "~700-900g", "compactness": "Solid Core", "shelf_life": "10 Days cool"}), "Outer wrapper leaves removed, cleanly trimmed stem", 55),
+        (93, "Organic Ruby Beetroot (500g)", "fruits-vegetables", "Fresh Vegetables", "Valley Greens", 0.45, 38, "Deep crimson, mineral-rich organic beetroots with intact sweet earthy flavor. Packed with dietary nitrates, iron, and folate for fresh juices and salads.", 1, "Iron Boost", json.dumps({"weight": "500g (3-4 beets)", "variety": "Crimson Globe", "shelf_life": "14 Days"}), "Unwaxed, dirt-washed, harvest fresh", 45),
+        (94, "Fresh Crisp Bitter Gourd / Karela (500g)", "fruits-vegetables", "Fresh Vegetables", "Mandi Fresh", 0.49, 42, "Dark green, spiky and tender bitter gourds. Famous for detoxifying properties, blood-sugar regulation, and authentic crispy khatta-meetha stir-fry.", 1, "Ayurvedic Detox", json.dumps({"weight": "500g", "firmness": "High Firmness Tender Seeds", "shelf_life": "6 Days"}), "Hand-selected tender ridged gourds", 40),
+        (95, "Farm Fresh Fenugreek / Methi Leaves (250g)", "fruits-vegetables", "Leafy Greens", "HerbAroma", 0.29, 25, "Freshly cut aromatic methi bunches with tender small green leaves. Traditional superfood herb essential for methi thepla, aloo methi, and dal.", 1, "Aromatic Greens", json.dumps({"weight": "250g Bunch", "cleaned": True, "shelf_life": "3 Days chilled"}), "Root-trimmed, ozone rinsed, zero yellowing", 60),
+
+        # --- Clothes & Fashion Apparel (10: 96-105) ---
+        (96, "Men's Slim-Fit Washed Stretch Denim Jeans", "clothing", "Men's Fashion", "DenimWorks", 22.34, 1899, "Classic dark indigo washed jeans crafted from 98% cotton and 2% elastane for comfortable all-day flexibility. Reinforced rivets and durable 5-pocket styling.", 0, "Bestseller", json.dumps({"fit": "Slim Stretch Fit", "material": "98% Cotton, 2% Elastane (11.5 oz)", "waist": "30, 32, 34, 36", "wash": "Dark Indigo Enzyme Wash"}), "YKK zipper fly, copper rivets, pre-shrunk", 45),
+        (97, "Women's Pure Linen Relaxed Button-Down Shirt", "clothing", "Women's Fashion", "SolLinen", 17.64, 1499, "Breezy and elegant oversized shirt tailored from 100% French flax European linen. Breathable, thermoregulating, and softens beautifully with every wash.", 1, "Pure Linen", json.dumps({"fabric": "100% European Flax Linen (140 GSM)", "fit": "Relaxed Boyfriend Fit", "color": "Crisp Natural White", "sizes": "XS, S, M, L, XL"}), "Mother-of-pearl buttons, curved hem, pre-softened", 35),
+        (98, "Classic Organic Cotton Fleece Pullover Hoodie", "clothing", "Outerwear", "EcoThreads", 15.28, 1299, "Heavyweight 340 GSM brushed fleece hoodie crafted from 100% certified organic combed cotton. Features a double-lined hood and spacious kangaroo pocket.", 1, "Cozy Warmth", json.dumps({"fabric": "100% GOTS Organic Cotton (340 GSM)", "interior": "Brushed Fleece", "color": "Heather Grey", "sizes": "S, M, L, XL, XXL"}), "Ribbed spandex cuffs and waistband, metal eyelets", 50),
+        (99, "Handcrafted Organic Khadi Cotton Kurta", "clothing", "Ethnic Wear", "Viraat Craft", 11.75, 999, "Breathable handcrafted knee-length kurta woven on traditional handlooms using pure organic khadi cotton. Features a mandarin collar and coconut shell buttons.", 1, "Artisan Woven", json.dumps({"weave": "100% Handspun Khadi Cotton", "pattern": "Solid Sage Green", "collar": "Mandarin Band", "pockets": "2 Side Pockets"}), "Naturally dyed, hypoallergenic, skin-friendly airy weave", 40),
+        (100, "Waterproof Packable Windbreaker Travel Jacket", "clothing", "Jackets & Outerwear", "Summit Peak", 25.87, 2199, "Featherweight 10,000mm waterproof ripstop windbreaker with taped seams and breathable underarm vents. Compresses entirely into its own zippered chest pocket.", 0, "Weather Shield", json.dumps({"waterproofing": "10,000mm DWR Finish", "weight": "210g Ultralight", "hood": "Adjustable Drawcord Hood", "packable": True}), "YKK AquaGuard zips, 360-degree reflective accents", 35),
+        (101, "Bohemian Floral Tiered Cotton Midi Dress", "clothing", "Dresses", "Flora Atelier", 21.16, 1799, "Whimsical tiered midi dress crafted from 100% breathable organic cotton cambric. Decorated with delicate artisanal hand-block botanical floral prints.", 1, "Hand Printed", json.dumps({"material": "100% Organic Cotton Cambric", "length": "Midi (46 inches)", "sleeves": "Elbow Puff Sleeves with Elastic", "lining": "100% Soft Cotton Voile"}), "A-line silhouette, invisible side zipper, wooden bead ties", 30),
+        (102, "Retro Polarized UV400 Acetate Sunglasses", "clothing", "Fashion Accessories", "Lumos Eyewear", 10.58, 899, "Timeless unisex vintage frame sunglasses hand-crafted from plant-based cellulose acetate with TAC polarized Category-3 UV400 protective lenses.", 0, "UV400 Polarized", json.dumps({"frame": "Cellulose Acetate Tortoiseshell", "lenses": "TAC Polarized Gray UV400", "hinges": "5-Barrel Stainless Steel", "weight": "28g"}), "Eliminates glare, includes hard vegan leather case & microfiber cloth", 55),
+        (103, "Handwoven Pure Mulberry Silk Scarf", "clothing", "Accessories", "Kashi Weaves", 14.10, 1199, "Exquisite 100% pure Mulberry silk scarf featuring traditional dual-tone borders and hand-rolled hems. Silky sheen with lightweight drape for formal or casual styling.", 1, "Pure Silk", json.dumps({"material": "100% Mulberry Silk (16 Momme)", "dimensions": "180 x 50 cm", "weave": "Zari Jacquard Border", "care": "Dry Clean Only"}), "Silk Mark certified, featherlight luxury hand feel", 25),
+        (104, "Men's Stretch Cotton Chino Trousers", "clothing", "Bottoms", "UrbanCraft", 18.81, 1599, "Modern flat-front chino trousers tailored from peached cotton twill with 3% stretch. Perfect transition piece from office meetings to weekend dinners.", 0, "Smart Casual", json.dumps({"fabric": "97% Cotton Twill, 3% Spandex", "fit": "Tapered Regular Fit", "color": "Khaki Sand", "waist": "30, 32, 34, 36"}), "Double welt back pockets, contrast inner waistband tape", 40),
+        (105, "Minimalist Vegan Leather Crossbody Saddle Bag", "clothing", "Bags & Accessories", "Terra Luxe", 19.99, 1699, "Sleek crescent saddle crossbody bag handcrafted from premium water-resistant vegan microfiber leather. Features magnetic snap flap and adjustable shoulder strap.", 0, "Cruelty Free", json.dumps({"material": "Water-Resistant Microfiber Vegan Leather", "hardware": "Brushed Antique Gold", "dimensions": "22 x 16 x 7 cm", "strap": "Adjustable 110-125 cm"}), "Interior zippered RFID pocket, scratch-resistant pebble texture", 35),
+
+        # --- Innerwear & Loungewear Collection (11: 106-116) ---
+        (106, "Men's Bamboo Fiber Anti-Chafe Boxer Briefs (Pack of 3)", "innerwear", "Men's Underwear", "Bambooly", 9.40, 799, "Ultra-luxurious men's boxer briefs crafted from 95% organic bamboo viscose. 3x softer than cotton, thermo-regulating, anti-odor, with non-ride-up 5-inch leg.", 1, "Best Seller", json.dumps({"pack_size": "3 Boxer Briefs (Black, Navy, Grey)", "fabric": "95% Bamboo Rayon, 5% Spandex", "waistband": "Anti-Roll Microfiber Elastic", "pouch": "Contour Ergonomic 3D Pouch"}), "Flatlock anti-chafing seams, tagless waistband, moisture wicking", 65),
+        (107, "Men's Ultra-Soft Bamboo Fiber Trunks (Pack of 2)", "innerwear", "Men's Underwear", "Bambooly", 8.22, 699, "Low-rise modern trunk cut for active men. Breathable natural bamboo fiber prevents chafing and maintains fresh feel during workouts and workdays.", 1, "Active Comfort", json.dumps({"pack_size": "2 Trunks (Charcoal & Navy)", "fabric": "95% Bamboo Viscose, 5% Elastane", "rise": "Low Rise Modern", "inseam": "3 Inch Trunk"}), "Zero riding up, bacteriostatic bamboo fiber, seamless waistband", 60),
+        (108, "Men's 100% Combed Cotton Ribbed Undershirts / Vests (Pack of 3)", "innerwear", "Men's Vests", "EcoThreads", 6.46, 549, "Pack of 3 classic ribbed sleeveless undershirt vests tailored from 100% super-combed organic cotton. Absorbs sweat cleanly under formal shirts and tees.", 1, "Pure Cotton", json.dumps({"pack_size": "3 Vests (Prism White)", "fabric": "100% Super-Combed Organic Cotton 1x1 Rib", "collar": "Scoop Neck", "sizes": "S, M, L, XL, XXL"}), "Extra body length stays tucked, reinforced armholes, tagless", 75),
+        (109, "Women's Seamless Wireless Everyday T-Shirt Bra", "innerwear", "Lingerie & Bras", "LuxeComfort", 8.81, 749, "Cloud-soft wireless bra with buttery smooth seamless bonded cups. Invisible under thin tees, providing gentle natural lift without uncomfortable underwires.", 0, "Invisible Comfort", json.dumps({"type": "Wireless T-Shirt Bra", "cups": "Breathable Foam Moulded Cups", "closure": "4-Row Hook & Eye", "straps": "Adjustable Multi-Way Straps", "sizes": "32B to 38D"}), "Zero underwire poke, laser-cut bonded edges, buttery second-skin feel", 55),
+        (110, "Women's 100% Breathable Organic Cotton Hipster Briefs (Pack of 3)", "innerwear", "Women's Panties", "EcoThreads", 7.05, 599, "Everyday hipster panties crafted from 100% certified organic cotton with 100% cotton double-layer gusset. Breathable, hypoallergenic, and gentle on sensitive skin.", 1, "Hypoallergenic", json.dumps({"pack_size": "3 Hipsters (Nude, Rose, Black)", "material": "95% Organic Cotton, 5% Elastane (100% Cotton Gusset)", "coverage": "Medium Hipster Coverage", "sizes": "XS to XXL"}), "Enclosed soft waist elastic, zero panty lines, dermatologist recommended", 70),
+        (111, "Women's Zero-Feel Lightly Padded Triangle Bralette", "innerwear", "Lingerie & Bras", "LuxeComfort", 7.64, 649, "Effortless lounge bralette in ultra-stretch nylon elastane micro-knit. Removable teardrop modesty pads and plunge V-neckline for easy weekend lounging.", 0, "Zero Feel", json.dumps({"type": "Pullover Lounge Bralette", "padding": "Removable Ultra-Thin Pads", "hardware": "Zero Metal Hardware", "colors": "Dusty Sage, Cocoa, Black"}), "360-degree stretch, sleeps comfortably, seamless silhouette", 50),
+        (112, "Women's Anti-Chafing High-Rise Cotton Boy Shorts (Pack of 2)", "innerwear", "Women's Loungewear", "EcoThreads", 5.87, 499, "Comfortable high-waisted boy shorts with 4-inch leg length designed to prevent inner-thigh friction under dresses, skirts, or for comfy sleepwear.", 1, "Anti-Chafing", json.dumps({"pack_size": "2 Boy Shorts (Black & Heather Oat)", "fabric": "95% Organic Combed Cotton, 5% Spandex", "waist": "High Rise Wide Comfort Band", "inseam": "4 Inch Thigh Coverage"}), "Eliminates thigh chafing, stay-put leg bands, breathable cotton gusset", 60),
+        (113, "Unisex Merino Wool Thermal Winter Top", "innerwear", "Thermals", "Nordic Frost", 10.58, 899, "Premium base-layer thermal full-sleeve top woven from fine Australian Merino wool blend. Traps body heat while wicking away perspiration in sub-zero cold.", 0, "Extreme Thermal", json.dumps({"fabric": "40% Merino Wool, 40% Modal, 20% Poly", "weight": "240 GSM Midweight", "fit": "Body-Hugging Baselayer", "neckline": "Crew Neck Low Profile"}), "Flatlock anti-irritation seams, natural odor resistance, itch-free", 45),
+        (114, "Unisex Merino Wool Thermal Winter Bottoms", "innerwear", "Thermals", "Nordic Frost", 10.58, 899, "Matching thermal long-john trousers featuring a comfort stretch waistband and ankle cuffs. Keeps legs toasty under trousers and jeans without adding bulky weight.", 0, "Extreme Thermal", json.dumps({"fabric": "40% Merino Wool, 40% Modal, 20% Poly", "weight": "240 GSM Midweight", "waistband": "Soft Plush Back Elastic", "fly": "Front Opening Fly"}), "Ankle ribbing prevents ride-up, thermal air-pocket knit structure", 45),
+        (115, "Bamboo Fiber Odor-Resistant Cushion Ankle Socks (Pack of 5)", "innerwear", "Socks & Hosiery", "Bambooly", 5.28, 449, "Pack of 5 low-cut ankle athletic socks featuring thick terry heel-to-toe cushioning, reinforced Y-stitched heel pocket, and natural bamboo antibacterial freshness.", 1, "Cushion Comfort", json.dumps({"pack_size": "5 Pairs (Black, Charcoal, Navy, White, Grey)", "material": "80% Bamboo Viscose, 17% Poly, 3% Elastane", "cushioning": "Full Sole Terry Cushion", "arch": "Ribbed Arch Support Compression"}), "Blister-tab heel collar, hand-linked seamless toe, odor neutralization", 80),
+        (116, "Seamless Cotton Blend Everyday Ankle No-Show Socks (Pack of 3)", "innerwear", "Socks & Hosiery", "StepFit", 3.52, 299, "Low-profile invisible loafer socks with triple silicone heel grips that guarantee zero slippage throughout the entire day. Cool breathable mesh knit top.", 0, "No Slip Grip", json.dumps({"pack_size": "3 Pairs (Beige, Grey, Black)", "grip": "Triple Silicone Non-Slip Heel Strips", "material": "78% Cotton, 20% Nylon, 2% Spandex", "cut": "Low-Profile Hidden No-Show"}), "Invisible in sneakers and boat shoes, ventilated instep mesh", 90),
+
+        # --- Amazon Bestsellers & Top Rated Collection (20: 117-136) ---
+        (117, "Amazon Echo Dot (5th Gen) Smart Speaker with Alexa", "electronics", "Smart Home", "Amazon", 52.93, 4499, "Best sounding Echo Dot yet with clearer vocals and deeper bass. Control smart home appliances, play music, set timers, and ask questions with Alexa voice commands.", 0, "Amazon Choice", json.dumps({"speaker": "1.73-inch Front-Firing", "connectivity": "Dual-Band Wi-Fi & Bluetooth", "voice_assistant": "Alexa Built-in", "sensors": "Motion Detection & Temperature"}), "Tap gesture snooze, built-in eero mesh Wi-Fi extender, mic off privacy button", 50),
+        (118, "Amazon Fire TV Stick 4K with Alexa Voice Remote", "electronics", "Streaming Devices", "Amazon", 47.05, 3999, "Cinematic 4K Ultra HD streaming with support for Dolby Vision, HDR10+, and immersive Dolby Atmos audio. Wi-Fi 6 support for smooth 4K streaming even with multiple devices.", 0, "#1 Bestseller", json.dumps({"resolution": "4K Ultra HD up to 60 fps", "audio": "Dolby Atmos, 7.1 Surround", "storage": "8GB Internal Storage", "processor": "Quad-Core 1.7GHz"}), "Alexa Voice Remote with TV power and volume controls, preset app buttons", 60),
+        (119, "Amazon Kindle Paperwhite (16GB, 6.8-Inch Display)", "electronics", "E-Readers", "Amazon", 164.69, 13999, "Now with a 6.8-inch display, thinner borders, adjustable warm light, up to 10 weeks of battery life, and 20% faster page turns. Glare-free 300 ppi display reads like real paper.", 0, "Amazon Choice", json.dumps({"display": "6.8-inch Paperwhite 300 ppi", "storage": "16GB (Holds Thousands of Books)", "battery": "Up to 10 Weeks", "waterproof": "IPX8 (2m fresh water 60m)"}), "USB-C charging cable included, adjustable warm light from white to amber", 30),
+        (120, "Amazon Echo Show 8 (2nd Gen) HD Smart Display", "electronics", "Smart Home", "Amazon", 105.87, 8999, "8-inch HD touchscreen smart display with stereo speakers and 13MP camera with auto-framing. Make video calls, stream shows on Prime Video & Netflix, and control smart home.", 0, "Smart Display", json.dumps({"display": "8.0-inch HD (1280 x 800) Touchscreen", "camera": "13MP with Built-in Privacy Shutter", "speakers": "2 x 2.0-inch Neodymium Stereo", "microphones": "4 Far-Field Mics"}), "Mic/camera off button, dual-band Wi-Fi, photo frame mode", 25),
+        (121, "OnePlus Nord CE4 5G (8GB RAM, 128GB Storage)", "electronics", "Smartphones", "OnePlus", 294.11, 24999, "Next-level 5G smartphone powered by Qualcomm Snapdragon 7 Gen 3, ultra-fast 100W SUPERVOOC charging, massive 5500mAh battery, and silky 120Hz Fluid AMOLED display.", 0, "#1 Bestseller", json.dumps({"processor": "Snapdragon 7 Gen 3 (4nm)", "memory": "8GB LPDDR4X + 128GB UFS 3.1", "display": "6.7-inch FHD+ 120Hz AMOLED", "camera": "50MP Sony LYT-600 OIS + 8MP Ultra-Wide", "battery": "5500mAh with 100W Charger in Box"}), "Aqua Touch display works with wet hands, OxygenOS 14, dual stereo speakers", 40),
+        (122, "SanDisk Ultra 128GB MicroSDXC UHS-I Memory Card", "electronics", "Storage & Memory", "SanDisk", 11.16, 949, "Up to 140MB/s read speed engineered with proprietary technology to reach speeds beyond UHS-I 104MB/s. A1-rated for faster app performance on smartphones and Nintendo Switch.", 0, "Amazon Choice", json.dumps({"capacity": "128GB MicroSDXC", "speed": "Up to 140MB/s Read", "speed_class": "Class 10, UHS-I (U1), A1", "compatibility": "Smartphones, Tablets, Drones, Dashcams"}), "Includes full-size SD adapter, waterproof, temperature-proof, shockproof, X-ray proof", 85),
+        (123, "Logitech Pebble 2 M350s Wireless Bluetooth Mouse", "electronics", "Computer Accessories", "Logitech", 17.59, 1495, "Sleek, round, pebble-shaped slim wireless mouse. Silent clicks with 90% noise reduction. Connects via Bluetooth across up to 3 devices with instant Easy-Switch toggle.", 0, "Bestseller", json.dumps({"sensor": "High Precision Optical (1000 - 4000 DPI)", "connectivity": "Bluetooth Low Energy (3 Channels)", "battery": "24 Months (1x AA included)", "weight": "76g with Battery"}), "Customizable middle button with Logi Options+ app, 58% certified recycled plastic", 70),
+        (124, "Logitech K380 Multi-Device Bluetooth Wireless Keyboard", "electronics", "Computer Accessories", "Logitech", 29.35, 2495, "Minimalist multi-device keyboard for typing on computers, tablets, and phones. Connects to 3 devices simultaneously and switches with the tap of an Easy-Switch button.", 0, "Amazon Choice", json.dumps({"connectivity": "Bluetooth 3.0 up to 10m", "battery": "24 Months (2x AAA included)", "layout": "Scooped Low-Profile Scissor Keys", "compatibility": "Windows, macOS, iPadOS, Android, ChromeOS"}), "Lightweight 423g compact footprint, automatic OS key layout recognition", 55),
+        (125, "Anker Nano 30W GaN Fast Charger Adapter (USB-C)", "electronics", "Mobile Accessories", "Anker", 16.46, 1399, "Up to 30W high-speed charging in a tiny footprint powered by GaN II technology. Fast charge an iPhone 16 / 15 to 50% in just 25 minutes, or charge an iPad Air and MacBook Air.", 0, "GaN Fast Charge", json.dumps({"output": "30W Max USB-C Power Delivery", "technology": "GaN II (Gallium Nitride)", "safety": "ActiveShield 2.0 Dynamic Temp Sensor", "dimensions": "28.5 x 28.5 x 35.5 mm"}), "Foldable plug, PPS fast charging compatibility, ultra-compact travel design", 65),
+        (126, "Portronics Konnect CL Type-C to Lightning Cable (1.2m)", "electronics", "Mobile Accessories", "Portronics", 3.52, 299, "Heavy-duty 27W Power Delivery fast charging cable with durable nylon braided exterior and metal alloy connector shells. High-speed 480Mbps data transfer speed.", 0, "Budget Pick", json.dumps({"power": "27W PD Fast Charging", "length": "1.2 Meters (4 Feet)", "material": "High-Tensile Braided Nylon", "bend_lifespan": "10,000+ Bends Tested"}), "Tangle-free design, rust-proof connectors, compatible with all Lightning devices", 90),
+        (127, "Philips Daily Collection 750W Mixer Grinder (3 Jars)", "home-kitchen", "Kitchen Appliances", "Philips", 34.11, 2899, "Heavy-duty 750W copper motor engineered for tough Indian grinding tasks. Includes 3 rust-resistant food-grade stainless steel jars for wet batter, dry masala, and chutneys.", 0, "#1 Bestseller", json.dumps({"motor": "750 Watts Pure Copper Motor", "jars": "1.5L Wet Jar, 1.0L Multipurpose, 0.3L Chutney", "speed": "3 Speed Settings + Pulse", "blades": "Specialized Rust-Free Stainless Steel"}), "Overload protector switch, vacuum suction feet for vibration-free stability", 40),
+        (128, "Prestige Iris 1200W Induction Cooktop", "home-kitchen", "Cookware & Appliances", "Prestige", 22.34, 1899, "Eco-friendly, flameless induction stove with preset Indian cooking menus for idli, dosa, chapati, pressure cooker, and milk boiling. Dual heat sensor avoids overheating.", 0, "Energy Saver", json.dumps({"power": "1200 Watts Fast Heating", "surface": "Polished Micro-Crystal Ceramic Glass", "controls": "Push-Button Indian Menu Presets", "voltage": "Built-in Automatic Voltage Regulator"}), "Anti-magnetic wall, child lock safety, flame-free easy wipe clean", 45),
+        (129, "Pigeon by Stovekraft Sheen Electric Kettle (1.5L)", "home-kitchen", "Kitchen Appliances", "Pigeon", 7.05, 599, "Rapid boiling 1500W electric water kettle crafted from food-grade stainless steel body. 360-degree cordless swivel base and automatic shut-off boil-dry protection.", 0, "Amazon Choice", json.dumps({"capacity": "1.5 Litres", "power": "1500 Watts Rapid Boil", "material": "Hygienic SS304 Stainless Steel", "safety": "Auto Shut-Off & Boil-Dry Protection"}), "Single-touch locking lid, illuminated power indicator, concealed heating coil", 80),
+        (130, "Solimo Pre-Seasoned Cast Iron Dosa Tawa (11-Inch)", "home-kitchen", "Cookware", "Amazon Solimo", 9.99, 849, "Heavy-gauge 11-inch flat cast iron griddle pre-seasoned with 100% pure vegetable oil. Thick base distributes heat evenly for crispy restaurant-style dosas and parathas.", 0, "Amazon Brand", json.dumps({"diameter": "11 Inches (28 cm)", "weight": "2.2 kg Heavy Gauge Cast Iron", "seasoning": "100% Natural Vegetable Oil Pre-Seasoned", "compatibility": "Gas Stove, Induction & Campfire"}), "Ergonomic stay-cool silicone sleeve handle included, zero chemical non-stick coating", 50),
+        (131, "Eureka Forbes Quick Clean DX Portable Vacuum Cleaner (1200W)", "home-kitchen", "Home Cleaning", "Eureka Forbes", 41.16, 3499, "Compact and lightweight portable canister vacuum cleaner with powerful 1200W suction motor (16 kPa). Features dust-bag full indicator and automatic cord winder.", 0, "Top Rated", json.dumps({"power": "1200 Watts Motor (16 kPa Suction)", "accessories": "Floor/Carpet Brush, Crevice Nozzle, Upholstery Brush", "cord": "Automatic Retractable Power Cord", "filtration": "Multi-Layer Clean Air Filter"}), "Foot-operated on/off switch, 360-degree swivel front wheel, easy-carry handle", 35),
+        (132, "Milton Thermosteel Flip Lid Insulated Water Bottle (1000ml)", "home-kitchen", "Bottles & Flasks", "Milton", 10.53, 895, "Double-walled vacuum insulated SS304 flask with copper coating inside the vacuum insulation. Keeps beverages hot or icy cold for a full 24 hours without sweating.", 0, "Amazon Choice", json.dumps({"volume": "1000ml (1 Litre)", "insulation": "Vacuum Insulated with Internal Copper Layer", "temperature_retention": "24 Hours Hot / 24 Hours Cold", "material": "SS304 Food-Grade Stainless Steel"}), "Leak-proof flip lid with pouch jacket and belt, rust-free, BPA free", 75),
+        (133, "Sony PlayStation 5 (PS5) Wireless DualSense Controller (Midnight Black)", "electronics", "Gaming", "Sony", 64.59, 5490, "The definitive Sony PlayStation 5 (PS5) wireless controller featuring haptic feedback, dynamic adaptive triggers, built-in microphone, create button, and motion sensing.", 0, "Gaming Bestseller", json.dumps({"feedback": "Dual Actuators Haptic Feedback", "triggers": "Dynamic Adaptive Resistance Triggers", "audio": "Built-in Speaker & 3.5mm Headset Jack", "connectivity": "Bluetooth 5.1 & USB Type-C"}), "Signature comfortable two-tone ergonomic design, integrated rechargeable battery", 40),
+        (134, "Cosmic Byte CB-GK-16 Firefly Mechanical Gaming Keyboard", "electronics", "Gaming", "Cosmic Byte", 25.87, 2199, "Compact tenkeyless 87-key mechanical gaming keyboard with clicky Outemu Blue mechanical switches, rainbow LED backlighting with 11 modes, and 100% anti-ghosting.", 0, "Gamer Favorite", json.dumps({"switches": "Outemu Blue Clicky Mechanical (50M Clicks)", "layout": "87 Keys Tenkeyless (TKL)", "lighting": "Rainbow Backlit with 11 Dynamic Modes", "cable": "1.8m Braided Cable with Gold-Plated USB"}), "All-key rollover anti-ghosting, aluminum top plate, keycap puller included", 45),
+        (135, "Atomic Habits by James Clear (Paperback International Bestseller)", "daily-essentials", "Books & Reading", "Penguin Random House", 5.87, 499, "No matter your goals, Atomic Habits offers a proven framework for improving every day. Discover how tiny changes in behavior can lead to remarkable personal and career growth.", 0, "#1 Bestseller", json.dumps({"author": "James Clear", "pages": "320 Pages Paperback", "publisher": "Cornerstone / Penguin Random House", "language": "English", "isbn": "978-1847941831"}), "Over 15 million copies sold worldwide, printed on FSC-certified acid-free paper", 90),
+        (136, "Philips All-in-One Trimmer Series 3000 (9-in-1 Grooming Kit)", "personal-care", "Men's Grooming", "Philips", 19.94, 1695, "Complete 9-in-1 versatile grooming trimmer for beard, hair, body, and nose/ear detailing. Self-sharpening stainless steel blades that never require oiling.", 0, "#1 Bestseller", json.dumps({"attachments": "9 Attachments (Beard Combs, Hair Combs, Nose/Ear Trimmer)", "runtime": "Up to 60 Minutes Cordless Use", "charging": "USB-A Charging (Cable Included)", "blades": "Self-Sharpening Stainless Steel"}), "Washable attachments for easy hygiene cleaning, travel storage pouch included", 60),
     ]
+
+    # Seed categories hierarchy
+    try:
+        from backend.app.catalog.categories import get_all_categories_flat
+    except ImportError:
+        from app.catalog.categories import get_all_categories_flat
+
+    flat_cats = get_all_categories_flat()
+    cursor.executemany("""
+        INSERT OR REPLACE INTO categories (id, name, slug, description, icon, parent_id, policy_group, display_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    """, [(
+        c["id"], c["name"], c["slug"], c.get("description"), c.get("icon"),
+        c["parent_id"], c["policy_group"], c.get("display_order", 0)
+    ) for c in flat_cats])
+
+    slug_to_id = {c["slug"].lower(): c["id"] for c in flat_cats}
+    name_to_id = {c["name"].lower(): c["id"] for c in flat_cats}
 
     products_records = []
     for p in catalog:
         pid, name, cat, subcat, brand, price_usd, price_inr, desc, is_org, badge, attrs, specs, stock = p
         img = PRODUCT_IMAGES.get(pid, "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80")
         stock_status = "In Stock" if stock > 10 else ("Low Stock" if stock > 0 else "Out of Stock")
+
+        # Resolve category_id
+        target_cat_id = slug_to_id.get((subcat or "").lower().strip())
+        if not target_cat_id:
+            target_cat_id = name_to_id.get((subcat or "").lower().strip())
+        if not target_cat_id:
+            target_cat_id = slug_to_id.get((cat or "").lower().strip())
+        if not target_cat_id:
+            target_cat_id = 1
+
         products_records.append((
-            pid, name, cat, subcat, brand, price_usd, price_inr, "INR", desc, is_org,
-            img, attrs, specs, stock, stock_status, badge, 1, "ShopAI Verified Partner"
+            pid, name, cat, target_cat_id, subcat, brand, price_usd, price_inr, "INR", desc, is_org,
+            img, attrs, specs, stock, stock_status, badge, 1, "MOSS Verified Partner"
         ))
 
     cursor.executemany("""
         INSERT OR REPLACE INTO products (
-            id, name, category, subcategory, brand, price, price_inr, currency, description,
+            id, name, category, category_id, subcategory, brand, price, price_inr, currency, description,
             is_organic, image_url, attributes, specifications, stock, stock_status, badge, is_demo, supplier
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, products_records)
 
     # Reviews data for sentiment analysis and rating calculation
@@ -284,8 +478,70 @@ def create_database():
         (73, 5.0, "Zara Khan",     "Dries thick hair in under 5 minutes without extreme heat. Scalp protect sensor is fantastic."),
         (74, 5.0, "Justice V. Roy","The 18K gold nib glides across paper like silk. The definitive fountain pen."),
         (75, 5.0, "Aryan Kapoor",  "Rich warm tobacco and sweet creamy vanilla. Beast mode longevity over 14 hours."),
-        (76, 5.0, "Chef Sanjeev",  "Authentic Kashmiri Mongra saffron. Just 3 strands give incredible aroma and color."),
-        (77, 5.0, "Natasha Poonawalla","Timeless luxury tote. Canvas is durable and the removable pouch is super handy.")
+        (77, 5.0, "Natasha Poonawalla","Timeless luxury tote. Canvas is durable and the removable pouch is super handy."),
+        # Fresh Vegetables (78-95)
+        (78, 5.0, "Dr. Nandita",   "Fresh compact broccoli crowns! Zero worms, vibrant green color."),
+        (79, 4.5, "Chef Kunal",    "Tri-color bell peppers are super crunchy and sweet for stir-fry."),
+        (80, 5.0, "Shruti M",      "Seedless crisp cucumbers, perfect hydration for afternoon salads."),
+        (81, 4.5, "Arun Balaji",   "Plump firm button mushrooms, earthy and fresh in garlic sauté."),
+        (82, 5.0, "Dadi Ji",       "Sweet Delhi red carrots, made delicious gajar ka halwa."),
+        (83, 4.5, "Reema Roy",     "Dense snow-white cauliflower, clean leaves and zero bruising."),
+        (84, 4.5, "Tara Shankar",  "Snappy tender French green beans without annoying fibrous strings."),
+        (85, 5.0, "Usha Krishnan", "Very fragrant coriander and mint combo! Chutney turned out heavenly."),
+        (86, 4.5, "Manish Jain",   "Tender bhindi with soft tips that snap easily, cooked crisp without slime."),
+        (87, 4.5, "Suresh Gupta",  "Fiery green chillies and potent ginger, daily cooking staple."),
+        (88, 4.5, "Geeta Ben",     "Light green sweet lauki, tender thin skin with high water content."),
+        (89, 5.0, "Prakash Rawat", "Sweet mountain green peas! Kids ate half of them raw from the pod."),
+        (90, 4.5, "Meenakshi S",   "Glossy purple brinjals with minimal seeds, made delicious roasted bharta."),
+        (91, 5.0, "Harish Chawla", "Potent desi garlic with small cloves, wonderful strong flavor."),
+        (92, 4.5, "Alka Verma",    "Solid heavy cabbage head, fresh crunchy leaves for chowmein."),
+        (93, 4.5, "Rohit Pathak",  "Deep red juicy beetroots, great for morning detox juices."),
+        (94, 4.0, "Kamla Devi",    "Authentic tender bitter gourds, crispy when fried with onions."),
+        (95, 5.0, "Bhavna Patel",  "Super fresh aromatic methi leaves! The theplas were flavorful and soft."),
+        # Clothes & Fashion (96-105)
+        (96, 5.0, "Aditya Sen",    "The stretch denim fit is spot-on! Super comfortable for whole day wear."),
+        (97, 5.0, "Ananya Roy",    "Pure French linen fabric feels luxurious and breathable in hot weather."),
+        (98, 4.5, "Kabir Dev",     "Heavyweight organic fleece hoodie. Very warm, cozy interior and durable ribbing."),
+        (99, 5.0, "Siddharth K",   "The handwoven khadi cotton breathes so well. Excellent handcrafted finish."),
+        (100, 4.5, "Varun Trekker","Kept me dry during a heavy downpour on Western Ghats trek. Folds tiny!"),
+        (101, 5.0, "Pooja Hegde",  "Artisanal block floral print is stunning. Flowy silhouette and airy feel."),
+        (102, 4.5, "Rhea Pillai",  "Polarized lenses give crystal clear vision while driving. Classic frame."),
+        (103, 5.0, "Madhu Varma",  "Pure Mulberry silk with subtle zari border. Lightweight and elegant."),
+        (104, 4.5, "Karan Sethi",  "Peached cotton chino trousers with slight stretch. Great smart-casual pair."),
+        (105, 5.0, "Sanya Malhotra","Vegan saddle bag looks premium, smooth gold hardware and fits my essentials."),
+        # Innerwear & Loungewear (106-116)
+        (106, 5.0, "Rahul Dravid", "Bamboo boxer briefs are a game changer! Zero chafing, extremely soft."),
+        (107, 4.5, "Aman Khurana", "Low-rise bamboo trunks stay put without riding up. Great sweat wicking."),
+        (108, 5.0, "Deepak Kaul",  "Super-combed cotton ribbed vests stay tucked in cleanly. Very breathable."),
+        (109, 5.0, "Sneha Kapoor", "Best wireless bra I have ever worn. Zero poking, completely seamless under tees."),
+        (110, 5.0, "Pooja Menon",  "100% organic cotton hipsters with soft elastic. Gentle on sensitive skin."),
+        (111, 4.5, "Natasha L",    "Buttery soft triangle bralette. Perfect for work-from-home lounge comfort."),
+        (112, 5.0, "Rachna Bajaj", "Eliminated inner-thigh chafing under summer dresses. Highly recommend!"),
+        (113, 5.0, "Tenzing N",    "Merino wool thermal top kept me warm in Manali at -4°C without any itchiness."),
+        (114, 5.0, "Sonam Dorjee", "Thermal bottoms fit comfortably under jeans without feeling bulky."),
+        (115, 5.0, "Gaurav Nair",  "Thick cushioned sole and bamboo anti-odor properties. No smelly feet after gym."),
+        (116, 4.5, "Karan Johar",  "Triple silicone heel grips really work! Doesn't slip off inside loafers."),
+        # Amazon Bestsellers (117-136)
+        (117, 5.0, "Ankit Mehta",   "The Echo Dot 5th Gen has fantastic sound for its compact size! Alexa picks up commands even with loud music playing."),
+        (118, 5.0, "Rohan Kapoor",  "Fire TV Stick 4K transformed our TV into a theater. Dolby Vision and Atmos are stunning on Netflix and Prime."),
+        (119, 5.0, "Smriti Sen",    "Kindle Paperwhite warm light is a blessing for night reading. Battery literally lasts over 2 months!"),
+        (120, 4.5, "Pooja Hegde",   "Echo Show 8 screen is crisp and the auto-framing camera is so useful on family video calls."),
+        (121, 5.0, "Varun Sharma",  "OnePlus Nord CE4 charges to full in 28 minutes with 100W! Screen is super smooth, cameras are very sharp."),
+        (122, 5.0, "Nikhil Nair",   "Genuine SanDisk Ultra 128GB, tested read speeds hit 135MB/s on my camera. Solid reliable memory."),
+        (123, 5.0, "Meera S",       "Logitech Pebble mouse is completely silent and switches between my laptop and iPad with one click."),
+        (124, 5.0, "Aditya Rao",    "Logitech K380 keyboard has wonderful scooped keys. Quiet, compact, and lasts 2 years on AAA batteries."),
+        (125, 5.0, "Karan Johar",   "Anker Nano 30W charger is smaller than an ice cube! Fast-charges my iPhone and iPad without getting hot."),
+        (126, 4.5, "Deepak Joshi",  "Portronics Konnect CL cable is thick and sturdy. Fast-charges my phone quickly with 27W PD."),
+        (127, 5.0, "Sunita Rao",    "Philips 750W mixer grinder makes smooth idli batter and fine garam masala in minutes. Motor is very powerful."),
+        (128, 4.5, "Rajesh Kumar",  "Prestige induction stove saves so much gas cylinder cost. Preset dosa and milk buttons work like a charm."),
+        (129, 5.0, "Kavita Pillai", "Pigeon kettle boils water in under 2 minutes. Stainless steel body is hygienic and auto-shutoff is safe."),
+        (130, 4.5, "Chef Sanjeev",  "Solimo cast iron dosa tawa is heavy-gauge and crisp dosas come off effortlessly without sticking."),
+        (131, 5.0, "Anita Deshmukh","Eureka Forbes vacuum cleaner has serious suction power. Lightweight and easily cleans curtains and carpets."),
+        (132, 5.0, "Manish Tiwari", "Milton Thermosteel bottle kept my cold water chilled during a 38°C road trip all day. Truly 24hr retention."),
+        (133, 5.0, "Arjun Gaming",  "DualSense haptic feedback and adaptive triggers on PS5 are unmatched in modern gaming immersion."),
+        (134, 4.5, "Siddharth Dev", "Cosmic Byte mechanical keyboard blue switches have that crisp satisfying click. Rainbow lighting looks sick."),
+        (135, 5.0, "Vikram Seth",   "Atomic Habits changed the way I look at daily routines. Must-read book for anyone seeking personal mastery."),
+        (136, 5.0, "Gaurav Malhotra","Philips 9-in-1 trimmer is precise and cordless battery easily lasts 5 full beard trims on a single charge.")
     ]
 
     cursor.execute("DELETE FROM reviews")

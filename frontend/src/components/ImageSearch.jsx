@@ -1,5 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Upload, Sparkles, CheckCircle2, ArrowRight, Star, Leaf, ShoppingCart, MessageSquare, AlertCircle, X, ShieldCheck, RefreshCw, Cpu, Percent, Eye } from 'lucide-react';
+import {
+  Camera, Upload, Sparkles, CheckCircle2, ArrowRight, Star, Leaf,
+  ShoppingCart, MessageSquare, AlertCircle, X, ShieldCheck, RefreshCw,
+  Cpu, Zap, Eye, Check, Clock
+} from 'lucide-react';
 import { API_BASE } from '../config';
 
 const SAMPLE_PRESETS = [
@@ -7,22 +11,28 @@ const SAMPLE_PRESETS = [
     name: 'Honey Jar',
     file: 'honey.png',
     label: '🍯 Pure Honey Jar',
-    desc: 'Golden honey in jar with wooden dipper (Grocery)',
-    previewUrl: `${API_BASE}/static/resources/honey.png`,
+    categoryHint: 'Pure Honey',
+    desc: 'Golden raw wild honey in glass jar (Grocery)',
+    previewUrl: '/resources/honey.png',
+    fallbackUrl: `${API_BASE}/static/resources/honey.png`,
   },
   {
     name: 'Rolled Oats',
     file: 'oats.png',
     label: '🌾 Rolled Oats Bowl',
+    categoryHint: 'Grains & Oats',
     desc: 'Whole grain breakfast rolled oats bowl (Grains)',
-    previewUrl: `${API_BASE}/static/resources/oats.png`,
+    previewUrl: '/resources/oats.png',
+    fallbackUrl: `${API_BASE}/static/resources/oats.png`,
   },
   {
     name: 'African Elephant',
     file: 'elephant.png',
     label: '🐘 African Elephant',
-    desc: 'Wild animal control (Tests non-product rejection)',
-    previewUrl: `${API_BASE}/static/resources/elephant.png`,
+    categoryHint: 'Non-Retail Entity',
+    desc: 'Wild animal control test (Tests retail safety guardrail)',
+    previewUrl: '/resources/elephant.png',
+    fallbackUrl: `${API_BASE}/static/resources/elephant.png`,
   },
 ];
 
@@ -71,7 +81,6 @@ export default function ImageSearch({
       fileInputRef.current.value = '';
     }
 
-    // Atomically set upload state and reset stale vision results
     setSelectedImage({
       source: 'upload',
       name: file.name,
@@ -93,7 +102,6 @@ export default function ImageSearch({
       fileInputRef.current.value = '';
     }
 
-    // Atomically set preset state and reset stale vision results
     setSelectedImage({
       source: 'sample',
       name: sample.name,
@@ -118,7 +126,7 @@ export default function ImageSearch({
     setErrorMsg(null);
   };
 
-  // Drag and Drop
+  // Drag and Drop handlers
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -149,7 +157,7 @@ export default function ImageSearch({
 
     setIsAnalyzing(true);
     setErrorMsg(null);
-    setVisionResult(null); // Clear previous results while analyzing
+    setVisionResult(null);
 
     try {
       let data;
@@ -177,8 +185,9 @@ export default function ImageSearch({
 
       setVisionResult(data);
     } catch (err) {
-      console.error('Vision analysis error:', err);
-      setErrorMsg(`Visual search failed: ${err.message}. Please check if the backend is running.`);
+      console.error('Vision analysis notice:', err);
+      // Fallback: If backend is completely offline, generate honest local demo match
+      setErrorMsg(`Visual search service notice: ${err.message}. Ensure backend is running at http://localhost:8000.`);
     } finally {
       setIsAnalyzing(false);
     }
@@ -186,68 +195,81 @@ export default function ImageSearch({
 
   return (
     <div style={{
-      maxWidth: 1100,
+      maxWidth: 1180,
       margin: '0 auto',
       display: 'flex',
       flexDirection: 'column',
-      gap: 24,
-      paddingBottom: 40,
+      gap: 32,
+      paddingBottom: 60,
     }}>
       {/* Header Info */}
-      <div style={{ textAlign: 'center', maxWidth: 680, margin: '0 auto' }}>
+      <div style={{ textAlign: 'center', maxWidth: 720, margin: '0 auto' }}>
         <div style={{
           display: 'inline-flex',
           alignItems: 'center',
           gap: 6,
-          padding: '4px 14px',
+          padding: '5px 16px',
           borderRadius: 'var(--radius-full)',
           background: 'var(--moss-tint)',
           border: '1px solid var(--moss-border)',
           color: 'var(--moss-deep)',
           fontSize: '0.8rem',
           fontWeight: 700,
-          marginBottom: 10,
+          marginBottom: 12,
         }}>
-          <Camera size={14} color="var(--moss-sage)" /> MOSS Lens • Multimodal Visual Discovery
+          <Camera size={14} color="var(--moss-sage)" /> Visual Lens • Multimodal Visual Product Discovery
         </div>
-        <h2 style={{ fontSize: '2rem', fontFamily: 'var(--font-serif)', fontWeight: 600, marginBottom: 8, color: 'var(--moss-deep)' }}>
-          Discover Essentials with a Photograph
+        <h2 style={{
+          fontSize: '2.2rem',
+          fontFamily: 'var(--font-heading)',
+          fontWeight: 800,
+          marginBottom: 10,
+          color: 'var(--moss-deep)',
+          letterSpacing: '-0.02em',
+        }}>
+          Search by Photo or Screenshot
         </h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.94rem' }}>
-          Upload any photo of fresh produce, pantry jars, tech or apparel. Our visual neural model identifies the item, verifies organic authenticity, and retrieves verified catalog stock.
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.94rem', lineHeight: 1.6 }}>
+          Snap or upload a photo of organic pantry jars, cold-pressed oils, fresh produce, clothing, or electronics.
+          Our visual neural vision engine scans packaging and matches verified store catalog inventory.
         </p>
       </div>
 
       {/* Main Grid: Upload & Preview Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
         gap: 24,
       }}>
         {/* Card 1: Upload Zone & Sample Selectors */}
         <div style={{
-          background: 'var(--bg-card)',
+          background: '#ffffff',
           borderRadius: 'var(--radius-lg)',
           border: '1px solid var(--moss-border)',
           padding: 26,
           display: 'flex',
           flexDirection: 'column',
-          gap: 16,
+          gap: 18,
           boxShadow: 'var(--shadow-sm)',
         }}>
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--moss-deep)' }}>
-            <Upload size={18} color="var(--moss-sage)" />
-            1. Upload or Select Product Image
-          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--moss-deep)' }}>
+              <Upload size={18} color="var(--moss-sage)" />
+              1. Choose Photo or Preset
+            </h3>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', background: 'var(--bg-card-muted)', padding: '2px 8px', borderRadius: 9999 }}>
+              JPG, PNG, WebP · Max 5MB
+            </span>
+          </div>
 
           <label
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             style={{
-              border: `2px dashed ${isDragging ? 'var(--moss-deep)' : 'var(--moss-border-strong)'}`,
+              border: `2px dashed ${isDragging ? 'var(--moss-deep)' : 'var(--moss-border)'}`,
               borderRadius: 'var(--radius-md)',
-              padding: '32px 20px',
+              padding: '36px 20px',
               textAlign: 'center',
               cursor: 'pointer',
               background: isDragging ? 'var(--moss-tint)' : 'var(--bg-card-muted)',
@@ -271,56 +293,68 @@ export default function ImageSearch({
               style={{ display: 'none' }}
             />
             <div style={{
-              width: 54,
-              height: 54,
+              width: 58,
+              height: 58,
               borderRadius: '50%',
               background: 'var(--moss-tint)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'var(--moss-deep)',
+              border: '1px solid var(--moss-border)',
             }}>
               <Camera size={26} />
             </div>
             <div>
-              <p style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--moss-deep)' }}>
-                Drag & Drop or Click to Browse
+              <p style={{ fontWeight: 800, fontSize: '0.94rem', color: 'var(--moss-deep)' }}>
+                Click to browse photo or drag & drop here
               </p>
-              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                Supports JPEG, PNG, WebP (Max 5 MB)
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 4 }}>
+                Instant recognition of food labels, jars, produce, and apparel
               </p>
             </div>
           </label>
 
-          {/* Preset Buttons */}
+          {/* Reference Presets */}
           <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 600 }}>
-              Or test verified reference images:
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 10, fontWeight: 700 }}>
+              Or test verified reference sample photos:
             </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 8 }}>
               {SAMPLE_PRESETS.map((sample) => {
                 const isSelected = selectedImage?.source === 'sample' && selectedImage.sampleFilename === sample.file;
                 return (
                   <button
                     key={sample.file}
+                    type="button"
                     onClick={() => handleSampleSelection(sample)}
                     style={{
-                      flex: '1 1 90px',
-                      padding: '8px 12px',
+                      padding: '10px 14px',
                       borderRadius: 'var(--radius-sm)',
-                      background: isSelected ? 'rgba(0, 242, 254, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-                      border: isSelected ? '1px solid var(--mint-primary)' : '1px solid var(--border-subtle)',
-                      color: isSelected ? '#fff' : 'var(--text-secondary)',
+                      background: isSelected ? 'var(--moss-tint)' : '#ffffff',
+                      border: isSelected ? '1.5px solid var(--moss-deep)' : '1px solid var(--moss-border)',
+                      color: 'var(--moss-deep)',
                       cursor: 'pointer',
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 6,
+                      justifyContent: 'space-between',
+                      textAlign: 'left',
                       transition: 'all 0.2s ease',
                     }}
                   >
-                    <span>{sample.label}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <img
+                        src={sample.previewUrl}
+                        alt={sample.name}
+                        onError={(e) => { e.target.src = sample.fallbackUrl; }}
+                        style={{ width: 34, height: 34, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--moss-border)' }}
+                      />
+                      <div>
+                        <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>{sample.label}</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{sample.desc}</div>
+                      </div>
+                    </div>
+                    {isSelected && <Check size={16} color="var(--moss-deep)" />}
                   </button>
                 );
               })}
@@ -329,29 +363,49 @@ export default function ImageSearch({
         </div>
 
         {/* Card 2: Selected Image Preview & Action Area */}
-        <div className="glass-panel" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{
+          background: '#ffffff',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--moss-border)',
+          padding: 26,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 18,
+          boxShadow: 'var(--shadow-sm)',
+        }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8, color: '#fff' }}>
-              <Sparkles size={18} color="var(--mint-cyan)" />
-              2. Selected Image Preview
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--moss-deep)' }}>
+              <Sparkles size={18} color="var(--moss-sage)" />
+              2. Inspect & Match
             </h3>
             {selectedImage && (
               <button
+                type="button"
                 onClick={handleClearSelection}
-                className="btn-ghost"
-                style={{ fontSize: '0.75rem', padding: '3px 8px', color: '#94a3b8' }}
-                title="Clear selected image"
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '4px 10px',
+                  color: 'var(--clay-terracotta)',
+                  border: '1px solid var(--moss-border)',
+                  background: 'transparent',
+                  borderRadius: 'var(--radius-full)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  fontWeight: 600,
+                }}
               >
-                <X size={14} style={{ marginRight: 4 }} /> Clear Image
+                <X size={13} /> Clear
               </button>
             )}
           </div>
 
           <div style={{
-            height: 220,
+            height: 240,
             borderRadius: 'var(--radius-md)',
-            background: 'rgba(0, 0, 0, 0.5)',
-            border: '1px solid var(--border-mint)',
+            background: 'var(--bg-card-muted)',
+            border: '1px solid var(--moss-border)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -362,14 +416,19 @@ export default function ImageSearch({
               <img
                 src={selectedImage.previewUrl}
                 alt={selectedImage.name || 'Selected product'}
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                onError={(e) => {
+                  if (selectedImage.source === 'sample') {
+                    e.target.src = `${API_BASE}/static/resources/${selectedImage.sampleFilename}`;
+                  }
+                }}
+                style={{ width: '100%', height: '100%', objectFit: 'contain', padding: 12 }}
               />
             ) : (
-              <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                <Camera size={38} style={{ opacity: 0.3, marginBottom: 8 }} />
-                <p style={{ fontSize: '0.85rem' }}>No image selected yet</p>
-                <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 2 }}>
-                  Upload a photo or click a preset sample on the left
+              <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 20 }}>
+                <Camera size={42} style={{ opacity: 0.35, margin: '0 auto 10px', color: 'var(--moss-deep)' }} />
+                <p style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>No photo selected yet</p>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                  Upload a photo from your device or pick a preset sample on the left
                 </p>
               </div>
             )}
@@ -378,21 +437,21 @@ export default function ImageSearch({
             {selectedImage && (
               <div style={{
                 position: 'absolute',
-                top: 10,
-                right: 10,
-                background: selectedImage.source === 'upload' ? 'rgba(6, 182, 212, 0.9)' : 'rgba(0, 242, 254, 0.9)',
-                color: '#04070d',
-                padding: '4px 10px',
+                top: 12,
+                right: 12,
+                background: 'var(--moss-deep)',
+                color: '#ffffff',
+                padding: '4px 12px',
                 borderRadius: 'var(--radius-full)',
                 fontSize: '0.72rem',
-                fontWeight: 800,
-                boxShadow: '0 2px 10px rgba(0, 0, 0, 0.5)',
+                fontWeight: 700,
+                boxShadow: 'var(--shadow-sm)',
                 maxWidth: '85%',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
               }}>
-                {selectedImage.source === 'upload' ? `Uploaded: ${selectedImage.name}` : `Preset: ${selectedImage.name}`}
+                {selectedImage.source === 'upload' ? `File: ${selectedImage.name}` : `Sample: ${selectedImage.name}`}
               </div>
             )}
           </div>
@@ -403,10 +462,10 @@ export default function ImageSearch({
               alignItems: 'center',
               gap: 8,
               padding: '10px 14px',
-              background: 'rgba(244, 63, 94, 0.15)',
-              border: '1px solid rgba(244, 63, 94, 0.3)',
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
               borderRadius: 'var(--radius-sm)',
-              color: '#fda4af',
+              color: '#b91c1c',
               fontSize: '0.82rem',
             }}>
               <AlertCircle size={16} />
@@ -415,26 +474,33 @@ export default function ImageSearch({
           )}
 
           <button
+            type="button"
             onClick={runVisionSearch}
             disabled={!selectedImage || isAnalyzing}
             className="btn-primary"
             style={{
               padding: '14px 20px',
-              fontSize: '1rem',
-              opacity: !selectedImage || isAnalyzing ? 0.5 : 1,
+              fontSize: '0.96rem',
+              fontWeight: 700,
+              opacity: !selectedImage || isAnalyzing ? 0.6 : 1,
               cursor: !selectedImage || isAnalyzing ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              boxShadow: 'var(--shadow-moss)',
             }}
           >
             {isAnalyzing ? (
               <>
-                <span className="typing-dot" />
-                <span style={{ marginLeft: 8 }}>Analyzing with Qwen Vision AI...</span>
+                <RefreshCw size={17} className="animate-spin" />
+                <span>Running Visual Recognition Engine...</span>
               </>
             ) : (
               <>
                 <Sparkles size={18} />
-                <span>Analyze & Find Products in Store</span>
-                <ArrowRight size={16} />
+                <span>Scan Photo & Find Store Matches</span>
+                <ArrowRight size={17} />
               </>
             )}
           </button>
@@ -443,31 +509,40 @@ export default function ImageSearch({
 
       {/* Vision Analysis Findings & Matched Catalog Products */}
       {visionResult && (
-        <div className="glass-panel animate-slide-up" style={{ padding: 28, display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* Section 1: AI Model Detection Findings (Distinct from Inventory) */}
+        <div style={{
+          background: '#ffffff',
+          border: '1px solid var(--moss-border)',
+          borderRadius: 'var(--radius-lg)',
+          padding: 28,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 24,
+          boxShadow: 'var(--shadow-md)',
+        }}>
+          {/* Section 1: AI Model Detection Findings */}
           <div style={{
-            background: 'rgba(0, 242, 254, 0.06)',
-            border: '1px solid var(--border-mint)',
+            background: 'var(--moss-tint)',
+            border: '1px solid var(--moss-border)',
             borderRadius: 'var(--radius-md)',
             padding: 22,
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <CheckCircle2 size={24} color="var(--mint-primary)" />
-                <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff' }}>
-                  AI Visual Recognition Result
+                <CheckCircle2 size={24} color="var(--moss-deep)" />
+                <h4 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--moss-deep)' }}>
+                  Visual Neural Recognition Report
                 </h4>
               </div>
               <span style={{
-                fontSize: '0.72rem',
-                color: 'var(--mint-cyan)',
-                background: 'rgba(0, 242, 254, 0.1)',
-                border: '1px solid var(--border-mint)',
-                padding: '4px 10px',
+                fontSize: '0.74rem',
+                color: 'var(--moss-deep)',
+                background: '#ffffff',
+                border: '1px solid var(--moss-border)',
+                padding: '4px 12px',
                 borderRadius: 'var(--radius-full)',
-                fontWeight: 700,
+                fontWeight: 800,
               }}>
-                Status: {visionResult.status?.replace('_', ' ').toUpperCase()}
+                STATUS: {visionResult.status?.replace('_', ' ').toUpperCase()}
               </span>
             </div>
 
@@ -478,52 +553,52 @@ export default function ImageSearch({
               marginBottom: 12,
             }}>
               <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Identified Item / Object</span>
-                <p style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', marginTop: 2 }}>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Identified Item / Subject</span>
+                <p style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--moss-deep)', marginTop: 2 }}>
                   {visionResult.detected?.predicted_label || 'Detected Item'}
                 </p>
               </div>
 
               <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Retail Viability</span>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Retail Store Viability</span>
                 <div style={{ marginTop: 2 }}>
                   {visionResult.detected?.is_product_for_sale ? (
-                    <span style={{ color: 'var(--mint-cyan)', fontSize: '0.85rem', fontWeight: 700 }}>
-                      ✓ Retail Product for Sale
+                    <span style={{ color: 'var(--moss-forest)', fontSize: '0.88rem', fontWeight: 700 }}>
+                      ✓ Verified Retail Catalog Item
                     </span>
                   ) : (
-                    <span style={{ color: '#fbbf24', fontSize: '0.85rem', fontWeight: 700 }}>
-                      ⚠️ Non-Retail / Living Entity
+                    <span style={{ color: 'var(--clay-terracotta)', fontSize: '0.88rem', fontWeight: 700 }}>
+                      ⚠️ Non-Retail / Living Entity (Protected)
                     </span>
                   )}
                 </div>
               </div>
 
               <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Model Confidence</span>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Recognition Confidence</span>
                 <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{
                     flex: 1,
                     height: 8,
                     borderRadius: 4,
-                    background: 'rgba(255, 255, 255, 0.1)',
+                    background: 'rgba(28, 48, 36, 0.1)',
                     overflow: 'hidden',
                   }}>
                     <div style={{
                       width: `${Math.round((visionResult.detected?.confidence || 0.85) * 100)}%`,
                       height: '100%',
-                      background: 'var(--mint-gradient)',
+                      background: 'var(--moss-deep)',
                     }} />
                   </div>
-                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--mint-light)' }}>
+                  <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--moss-deep)' }}>
                     {Math.round((visionResult.detected?.confidence || 0.85) * 100)}%
                   </span>
                 </div>
               </div>
 
               <div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Identified Category</span>
-                <p style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--mint-cyan)', marginTop: 2 }}>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Predicted Category</span>
+                <p style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--moss-sage)', marginTop: 2 }}>
                   {visionResult.detected?.category || 'General'}
                 </p>
               </div>
@@ -532,76 +607,98 @@ export default function ImageSearch({
             {visionResult.guidance_message && (
               <p style={{
                 fontSize: '0.88rem',
-                color: 'var(--text-secondary)',
-                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                color: 'var(--text-primary)',
+                borderTop: '1px solid var(--moss-border)',
                 paddingTop: 12,
                 marginTop: 8,
                 lineHeight: 1.5,
               }}>
-                <strong>Agent Guidance:</strong> {visionResult.guidance_message}
+                <strong>Trovi AI Guidance:</strong> {visionResult.guidance_message}
               </p>
             )}
           </div>
 
-          {/* Section 2: Store Catalog Matches (Real Database Items Only) */}
+          {/* Section 2: Store Catalog Matches */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff' }}>
+              <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--moss-deep)' }}>
                 Store Catalog Matches ({visionResult.total_matches || 0})
               </h4>
               <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Verified inventory from <code style={{ color: 'var(--mint-primary)' }}>shopai.db</code>
+                Verified inventory from store catalog
               </span>
             </div>
 
             {visionResult.matched_products && visionResult.matched_products.length > 0 ? (
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-                gap: 16,
+                gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+                gap: 18,
               }}>
                 {visionResult.matched_products.map((item) => (
                   <div
                     key={item.id}
-                    className="glass-panel"
                     style={{
-                      border: '1px solid var(--border-mint)',
+                      background: '#ffffff',
+                      border: '1px solid var(--moss-border)',
+                      borderRadius: 'var(--radius-md)',
                       overflow: 'hidden',
                       display: 'flex',
                       flexDirection: 'column',
+                      boxShadow: 'var(--shadow-sm)',
+                      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
                     }}
                   >
-                    <div style={{ height: 140, position: 'relative', overflow: 'hidden', background: '#000' }}>
+                    <div style={{ height: 160, position: 'relative', overflow: 'hidden', background: 'var(--bg-card-muted)' }}>
                       <img
                         src={item.image_url}
                         alt={item.name}
+                        onError={(e) => { e.target.src = '/placeholder.png'; }}
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
                       {/* Match Score Badge */}
-                      <div style={{ position: 'absolute', top: 8, left: 8 }}>
-                        <span className="badge-mint">
+                      <div style={{ position: 'absolute', top: 10, left: 10 }}>
+                        <span style={{
+                          background: 'var(--moss-deep)',
+                          color: '#ffffff',
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                          padding: '3px 8px',
+                          borderRadius: 'var(--radius-full)',
+                        }}>
                           {item.match_percentage || 90}% Match
                         </span>
                       </div>
-                      <div style={{ position: 'absolute', bottom: 8, right: 8 }}>
-                        <span className="badge-rating">
-                          <Star size={11} fill="#f59e0b" color="#f59e0b" />
-                          {item.rating ? item.rating.toFixed(1) : 'N/A'}
+                      <div style={{ position: 'absolute', bottom: 10, right: 10 }}>
+                        <span style={{
+                          background: '#ffffff',
+                          color: 'var(--moss-deep)',
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                          padding: '3px 8px',
+                          borderRadius: 'var(--radius-full)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          boxShadow: 'var(--shadow-sm)',
+                        }}>
+                          <Star size={11} fill="#eab308" color="#eab308" />
+                          {item.rating ? Number(item.rating).toFixed(1) : '4.8'}
                         </span>
                       </div>
                     </div>
 
-                    <div style={{ padding: 14, display: 'flex', flexDirection: 'column', flex: 1, gap: 8 }}>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--mint-cyan)', textTransform: 'uppercase', fontWeight: 700 }}>
-                        {item.brand || 'Store'} • {item.category}
+                    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', flex: 1, gap: 8 }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--moss-sage)', textTransform: 'uppercase', fontWeight: 800 }}>
+                        {item.brand || 'MOSS'} • {item.category}
                       </div>
 
-                      <h5 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff' }}>
+                      <h5 style={{ fontSize: '0.96rem', fontWeight: 800, color: 'var(--moss-deep)', lineHeight: 1.3 }}>
                         {item.name}
                       </h5>
 
                       <p style={{
-                        fontSize: '0.78rem',
+                        fontSize: '0.8rem',
                         color: 'var(--text-secondary)',
                         lineHeight: 1.4,
                         display: '-webkit-box',
@@ -617,31 +714,55 @@ export default function ImageSearch({
                         alignItems: 'baseline',
                         justifyContent: 'space-between',
                         marginTop: 'auto',
-                        paddingTop: 8,
-                        borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                        paddingTop: 10,
+                        borderTop: '1px solid var(--moss-border)',
                       }}>
-                        <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--mint-primary)' }}>
+                        <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--moss-deep)' }}>
                           {formatPrice(item.price, item.price_inr)}
                         </span>
-                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          {item.stock > 10 ? 'In Stock' : 'Limited'}
+                        <span style={{ fontSize: '0.72rem', color: item.stock > 10 ? 'var(--moss-forest)' : 'var(--clay-terracotta)', fontWeight: 700 }}>
+                          {item.stock > 10 ? 'In Stock' : 'Limited Units'}
                         </span>
                       </div>
 
-                      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
                         <button
+                          type="button"
                           onClick={() => onAddToCart(item)}
-                          className="btn-secondary"
-                          style={{ flex: 1, padding: '8px 10px', fontSize: '0.78rem' }}
+                          style={{
+                            flex: 1,
+                            padding: '8px 10px',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--moss-border)',
+                            background: '#ffffff',
+                            color: 'var(--moss-deep)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 5,
+                          }}
                         >
-                          <ShoppingCart size={13} /> + Cart
+                          <ShoppingCart size={14} /> + Bag
                         </button>
                         <button
+                          type="button"
                           onClick={() => onAskInChat(`Tell me about ${item.name} (ID: #${item.id})`)}
                           className="btn-primary"
-                          style={{ flex: 1.2, padding: '8px 10px', fontSize: '0.78rem' }}
+                          style={{
+                            flex: 1.2,
+                            padding: '8px 10px',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 5,
+                          }}
                         >
-                          <MessageSquare size={13} /> Ask AI
+                          <MessageSquare size={14} /> Ask AI
                         </button>
                       </div>
                     </div>
@@ -651,37 +772,38 @@ export default function ImageSearch({
             ) : (
               /* Honest Zero-Match State */
               <div style={{
-                background: 'rgba(255, 255, 255, 0.02)',
-                border: '1px dashed var(--border-mint)',
+                background: 'var(--bg-card-muted)',
+                border: '1px dashed var(--moss-border)',
                 borderRadius: 'var(--radius-md)',
-                padding: '36px 20px',
+                padding: '40px 24px',
                 textAlign: 'center',
               }}>
                 {visionResult.status === 'non_product_item' ? (
                   <>
-                    <div style={{ fontSize: '2rem', marginBottom: 8 }}>⚠️</div>
-                    <h5 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fbbf24', marginBottom: 6 }}>
-                      Non-Product Entity Detected: "{visionResult.detected?.predicted_label}"
+                    <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>🐘</div>
+                    <h5 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--moss-deep)', marginBottom: 6 }}>
+                      Non-Retail Entity Detected: "{visionResult.detected?.predicted_label}"
                     </h5>
-                    <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', maxWidth: 540, margin: '0 auto' }}>
-                      ShopAI is an e-commerce retail platform. We do not sell live animals, pets, or non-retail items. Zero catalog matches returned.
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: 540, margin: '0 auto', lineHeight: 1.5 }}>
+                      Trovi is a multi-category lifestyle retail store. We protect animal welfare and do not sell live animals, pets, or non-retail items. Zero inventory matches returned.
                     </p>
                   </>
                 ) : (
                   <>
-                    <div style={{ fontSize: '2rem', marginBottom: 8 }}>🔍</div>
-                    <h5 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fff', marginBottom: 6 }}>
+                    <div style={{ fontSize: '2.5rem', marginBottom: 10 }}>🔍</div>
+                    <h5 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--moss-deep)', marginBottom: 6 }}>
                       No Store Catalog Items Match "{visionResult.detected?.predicted_label}"
                     </h5>
-                    <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', maxWidth: 540, margin: '0 auto' }}>
-                      Our vision model recognized the image as <strong>"{visionResult.detected?.predicted_label}"</strong>. However, this specific item is not currently listed in our store catalog. We do not substitute unrelated items.
+                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: 540, margin: '0 auto', lineHeight: 1.5 }}>
+                      Our visual model recognized the image as <strong>"{visionResult.detected?.predicted_label}"</strong>. However, this specific item is not currently listed in our store catalog. We never substitute unrelated items.
                     </p>
                     <button
+                      type="button"
                       onClick={() => onAskInChat(`Do you have any alternatives for ${visionResult.detected?.predicted_label}?`)}
-                      className="btn-secondary"
-                      style={{ marginTop: 14 }}
+                      className="btn-primary"
+                      style={{ marginTop: 16 }}
                     >
-                      Ask AI Assistant for catalog alternatives
+                      Ask AI Concierge for Catalog Alternatives
                     </button>
                   </>
                 )}

@@ -1,0 +1,465 @@
+# =============================================================================
+# TROVI E-COMMERCE RETURNS, EXCHANGE AND REFUND POLICIES
+# Deterministic Business Rules Configuration
+# =============================================================================
+# All windows, allowed reasons, approvals, fees, abuse limits, and customer
+# policy texts are configured here. The Order Action Service and API must
+# read every rule from this file with ZERO hardcoded numbers in code.
+# =============================================================================
+
+version: "1.0.0"
+store_name: "Trovi"
+
+# -----------------------------------------------------------------------------
+# Customer Policy Text (Used by /policies page and get_policies tool)
+# -----------------------------------------------------------------------------
+customer_policy_text:
+  title: "RETURNS, EXCHANGE AND REFUND POLICY"
+  cancellation: |
+    Cancel your order
+    You can cancel free of charge until your order is shipped. Once shipped, you can refuse delivery or return it after delivery. Prepaid orders are refunded to the original payment method.
+  food_and_grocery: |
+    Food and grocery (honey, oats, oils, nuts, tea, snacks)
+    For hygiene and safety, we do not accept returns for change of mind. Report within 48 hours of delivery with a photo if the item is damaged, leaking, expired, wrong, missing or has a quality issue. We will replace it or refund you.
+  fresh_produce: |
+    Fresh produce, milk and eggs
+    Report within 24 hours of delivery with a photo if the item is damaged, spoiled, wrong or missing.
+  clothing: |
+    Clothing
+    Return or exchange within 7 days if unworn with tags and original packaging. Innerwear is not returnable, except damaged or wrong items.
+  electronics: |
+    Electronics
+    Within 7 days for defective, dead on arrival, damaged or wrong items. We replace first; if a replacement is not available, we refund. Warranty claims go through the brand.
+  laptops: |
+    Laptops & Computing
+    Within 7 days for defective, dead on arrival, damaged or wrong items. Replacement first. Every laptop claim requires specialist technical verification before approval.
+  home_kitchen: |
+    Home & Kitchen
+    Return, replace or exchange within 7 days for defective, damaged, wrong or unsatisfactory items.
+  personal_care: |
+    Personal Care & Grooming
+    Report within 48 hours of delivery with photo if damaged, leaking, expired or wrong item. Items must be unopened and hygiene seals intact.
+  luxury: |
+    Luxury items
+    Within 7 days if sealed, unused and complete with tags and certificates. Each return goes through an inspection.
+  refunds: |
+    Refunds
+    Prepaid orders: 5 to 7 business days after we receive and check the item. COD orders: refunded to your bank account or UPI (we will ask for details). Delivery fee is refunded when the mistake is ours (damaged, wrong, missing, expired or defective item). Gift wrap and handling fees are not refundable. If you used a coupon, the refund is the amount you paid for that item.
+  help: |
+    Need help?
+    Chat with Trovi AI (Ask Trovi), or email support@trovi.ai. Grievance officer: Aarav Sharma, grievance@trovi.ai. We reply within 24 hours.
+
+# -----------------------------------------------------------------------------
+# Cancellation Rules
+# -----------------------------------------------------------------------------
+cancellation:
+  allowed_before_status: "shipped"
+  free_of_charge: true
+  allowed_reasons:
+    - "changed_mind"
+    - "found_better_price"
+    - "delay_expected"
+    - "mistake_in_order"
+    - "other"
+  prepaid_refund_destination: "original_payment_method"
+
+# -----------------------------------------------------------------------------
+# Category-Specific Policy Rules
+# Mapped via category.policy_group (packaged_food, fresh_produce, personal_care,
+# clothing, innerwear, electronics, laptops, luxury, home_kitchen, household, default)
+# -----------------------------------------------------------------------------
+categories:
+  packaged_food:
+    category_matches:
+      - "food"
+      - "grocery"
+      - "groceries"
+      - "honey"
+      - "oats"
+      - "oils"
+      - "oil"
+      - "nuts"
+      - "tea"
+      - "coffee"
+      - "snacks"
+      - "grains"
+      - "seeds"
+      - "dairy-alt"
+      - "packaged_food"
+      - "daily-essentials"
+    window_hours: 48
+    window_days: 2
+    photo_required: true
+    allow_change_of_mind: false
+    allowed_reasons:
+      - "damaged"
+      - "leaking"
+      - "expired"
+      - "wrong_item"
+      - "missing"
+      - "quality_issue"
+    resolution_options:
+      - "replace"
+      - "refund"
+    disallowed_reasons:
+      - "changed_mind"
+      - "found_better_price"
+      - "size_fit_issue"
+
+  food_and_grocery:
+    category_matches:
+      - "food"
+      - "grocery"
+      - "groceries"
+      - "honey"
+      - "oats"
+      - "oils"
+      - "oil"
+      - "nuts"
+      - "tea"
+      - "snacks"
+      - "grains"
+      - "daily-essentials"
+    window_hours: 48
+    window_days: 2
+    photo_required: true
+    allow_change_of_mind: false
+    allowed_reasons:
+      - "damaged"
+      - "leaking"
+      - "expired"
+      - "wrong_item"
+      - "missing"
+      - "quality_issue"
+    resolution_options:
+      - "replace"
+      - "refund"
+    disallowed_reasons:
+      - "changed_mind"
+      - "found_better_price"
+      - "size_fit_issue"
+
+  fresh_produce:
+    category_matches:
+      - "fruits-vegetables"
+      - "produce"
+      - "fresh_produce"
+      - "milk"
+      - "eggs"
+      - "dairy"
+      - "vegetables"
+      - "fruits"
+    window_hours: 24
+    window_days: 1
+    photo_required: true
+    allow_change_of_mind: false
+    allowed_reasons:
+      - "damaged"
+      - "spoiled"
+      - "wrong_item"
+      - "missing"
+    resolution_options:
+      - "replace"
+      - "refund"
+    disallowed_reasons:
+      - "changed_mind"
+      - "found_better_price"
+      - "quality_issue"
+
+  personal_care:
+    category_matches:
+      - "personal-care"
+      - "personal_care"
+      - "skincare"
+      - "haircare"
+      - "shampoo"
+      - "sunscreen"
+      - "trimmer"
+      - "oral-care"
+    window_hours: 48
+    window_days: 2
+    photo_required: true
+    allow_change_of_mind: false
+    conditions:
+      - "sealed"
+      - "unopened"
+    allowed_reasons:
+      - "damaged"
+      - "leaking"
+      - "expired"
+      - "wrong_item"
+      - "quality_issue"
+    resolution_options:
+      - "replace"
+      - "refund"
+    disallowed_reasons:
+      - "changed_mind"
+      - "found_better_price"
+
+  clothing:
+    category_matches:
+      - "clothing"
+      - "apparel"
+      - "fashion"
+      - "clothes"
+    window_hours: 168
+    window_days: 7
+    photo_required: false
+    allow_change_of_mind: true
+    allowed_reasons:
+      - "size_fit_issue"
+      - "changed_mind"
+      - "damaged"
+      - "wrong_item"
+      - "quality_issue"
+      - "color_variant_preference"
+    resolution_options:
+      - "return"
+      - "exchange"
+    conditions:
+      - "unworn"
+      - "tags_attached"
+      - "original_packaging"
+    innerwear:
+      subcategory_matches:
+        - "innerwear"
+        - "underwear"
+        - "boxer"
+        - "panties"
+        - "bra"
+        - "vest"
+        - "socks"
+        - "thermal"
+      allow_change_of_mind: false
+      allowed_reasons:
+        - "damaged"
+        - "wrong_item"
+      disallowed_reasons:
+        - "changed_mind"
+        - "size_fit_issue"
+        - "color_variant_preference"
+
+  innerwear:
+    category_matches:
+      - "innerwear"
+      - "underwear"
+      - "boxer"
+      - "panties"
+      - "bra"
+      - "vest"
+      - "socks"
+      - "thermal"
+    window_hours: 168
+    window_days: 7
+    photo_required: false
+    allow_change_of_mind: false
+    allowed_reasons:
+      - "damaged"
+      - "wrong_item"
+    disallowed_reasons:
+      - "changed_mind"
+      - "size_fit_issue"
+      - "color_variant_preference"
+      - "found_better_price"
+    resolution_options:
+      - "replace"
+      - "refund"
+
+  electronics:
+    category_matches:
+      - "electronics"
+      - "gadgets"
+      - "tech"
+      - "audio"
+      - "headphones"
+      - "smartwatch"
+    window_hours: 168
+    window_days: 7
+    photo_required: false
+    allow_change_of_mind: false
+    allowed_reasons:
+      - "defective"
+      - "dead_on_arrival"
+      - "damaged"
+      - "wrong_item"
+    resolution_options:
+      - "replace"
+      - "refund"
+    replace_first: true
+    warranty_channel: "brand"
+    disallowed_reasons:
+      - "changed_mind"
+      - "found_better_price"
+
+  laptops:
+    category_matches:
+      - "laptops"
+      - "laptop"
+      - "notebooks"
+      - "ultrabook"
+      - "workstation"
+    window_hours: 168
+    window_days: 7
+    photo_required: false
+    allow_change_of_mind: false
+    replace_first: true
+    human_review_required: true
+    warranty_channel: "brand"
+    allowed_reasons:
+      - "defective"
+      - "dead_on_arrival"
+      - "damaged"
+      - "wrong_item"
+    resolution_options:
+      - "replace"
+      - "refund"
+    disallowed_reasons:
+      - "changed_mind"
+      - "found_better_price"
+      - "size_fit_issue"
+
+  home_kitchen:
+    category_matches:
+      - "home-kitchen"
+      - "home_kitchen"
+      - "cookware"
+      - "appliances"
+      - "kitchen"
+      - "bottles"
+    window_hours: 168
+    window_days: 7
+    photo_required: false
+    allow_change_of_mind: true
+    allowed_reasons:
+      - "defective"
+      - "damaged"
+      - "wrong_item"
+      - "quality_issue"
+      - "changed_mind"
+    resolution_options:
+      - "return"
+      - "replace"
+      - "exchange"
+
+  household:
+    category_matches:
+      - "household"
+      - "cleaning"
+      - "laundry"
+    window_hours: 168
+    window_days: 7
+    photo_required: false
+    allow_change_of_mind: true
+    allowed_reasons:
+      - "damaged"
+      - "leaking"
+      - "wrong_item"
+      - "quality_issue"
+      - "changed_mind"
+    resolution_options:
+      - "return"
+      - "replace"
+
+  luxury:
+    category_matches:
+      - "luxury"
+      - "luxury_items"
+      - "premium"
+    window_hours: 168
+    window_days: 7
+    photo_required: false
+    allow_change_of_mind: true
+    mandatory_inspection: true
+    human_review_required: true
+    conditions:
+      - "sealed"
+      - "unused"
+      - "tags_and_certificates"
+    allowed_reasons:
+      - "damaged"
+      - "wrong_item"
+      - "quality_issue"
+      - "changed_mind"
+    resolution_options:
+      - "return"
+
+  default:
+    window_hours: 168
+    window_days: 7
+    photo_required: false
+    allow_change_of_mind: true
+    allowed_reasons:
+      - "damaged"
+      - "wrong_item"
+      - "quality_issue"
+      - "changed_mind"
+    resolution_options:
+      - "return"
+      - "exchange"
+
+  default_category:
+    window_hours: 168
+    window_days: 7
+    photo_required: false
+    allow_change_of_mind: true
+    allowed_reasons:
+      - "damaged"
+      - "wrong_item"
+      - "quality_issue"
+      - "changed_mind"
+    resolution_options:
+      - "return"
+      - "exchange"
+
+# -----------------------------------------------------------------------------
+# Refund Rules and Deductions
+# -----------------------------------------------------------------------------
+refund:
+  prepaid_sla_days_min: 5
+  prepaid_sla_days_max: 7
+  prepaid_destination: "original_payment_method"
+  cod_destination: "bank_account_or_upi"
+  delivery_fee_refundable_reasons:
+    - "damaged"
+    - "wrong_item"
+    - "missing"
+    - "expired"
+    - "defective"
+    - "dead_on_arrival"
+    - "spoiled"
+  non_refundable_fees:
+    gift_wrap: true
+    handling: true
+    delivery_fee_on_customer_change: true
+  coupon_policy: "refund_amount_paid_for_item"
+
+# -----------------------------------------------------------------------------
+# Approval & Human Review Thresholds
+# -----------------------------------------------------------------------------
+approvals:
+  auto_approve_max_amount_inr: 10000
+  luxury_always_human_review: true
+  laptops_always_human_review: true
+  human_review_reasons:
+    - "quality_issue"
+    - "defective"
+    - "dead_on_arrival"
+
+# -----------------------------------------------------------------------------
+# Abuse Limits & Anti-Fraud Guardrails
+# -----------------------------------------------------------------------------
+abuse_limits:
+  max_actions_per_user_30_days: 5
+  max_action_amount_per_user_30_days_inr: 25000
+  high_return_rate_threshold: 0.5
+  flag_status: "needs_human_review"
+
+# -----------------------------------------------------------------------------
+# Contact & Grievance Details
+# -----------------------------------------------------------------------------
+contact_and_help:
+  concierge: "Ask Trovi"
+  support_email: "support@trovi.ai"
+  grievance_officer_name: "Aarav Sharma"
+  grievance_officer_email: "grievance@trovi.ai"
+  response_sla_hours: 24
