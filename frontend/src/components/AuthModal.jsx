@@ -466,6 +466,35 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
             </div>
           )}
 
+          {/* Full Name input for registration */}
+          {tab === 'register' && (
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                Full Customer Name *
+              </label>
+              <div style={{ position: 'relative' }}>
+                <User size={16} style={{ position: 'absolute', left: 12, top: 11, color: '#94a3b8' }} />
+                <input
+                  id="auth-name-input"
+                  type="text"
+                  required
+                  placeholder="e.g. Aditi Sharma"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px 9px 36px',
+                    borderRadius: 8,
+                    border: '1px solid var(--moss-border, #cbd5e1)',
+                    fontSize: '0.85rem',
+                    outline: 'none',
+                    backgroundColor: '#ffffff',
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Email input (used across login, register, and email forgot password) */}
           {(tab !== 'forgot' || (tab === 'forgot' && forgotStep === 'request' && channel === 'email')) && (
             <div>
