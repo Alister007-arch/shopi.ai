@@ -1,21 +1,39 @@
+import secrets
 import pytest
 from fastapi.testclient import TestClient
+from backend.tests.conftest import make_random_password
+import backend.tools as tools
 
 
 def get_customer_token(client: TestClient) -> str:
-    login_resp = client.post("/api/auth/login", json={
-        "email": "shopper@moss.internal",
-        "password": "Shopper@123456",
+    email = f"shopper_{secrets.token_hex(4)}@moss.internal"
+    pw = make_random_password()
+    resp = client.post("/api/auth/register", json={
+        "email": email,
+        "password": pw,
+        "full_name": "Test Shopper",
+        "phone": "9876543210",
     })
-    assert login_resp.status_code == 200, f"Customer login failed: {login_resp.text}"
-    return login_resp.json()["access_token"]
+    assert resp.status_code == 201, f"Customer registration failed: {resp.text}"
+    return resp.json()["access_token"]
 
 
 def get_admin_token(client: TestClient) -> str:
-    login_resp = client.post("/api/auth/login", json={
-        "email": "admin@moss.internal",
-        "password": "Admin@123456",
+    email = f"admin_{secrets.token_hex(4)}@moss.internal"
+    pw = make_random_password()
+    resp = client.post("/api/auth/register", json={
+        "email": email,
+        "password": pw,
+        "full_name": "Test Admin",
+        "phone": "9876543210",
     })
+    assert resp.status_code == 201, f"Admin registration failed: {resp.text}"
+    conn = tools.get_db_connection()
+    c = conn.cursor()
+    c.execute("UPDATE users SET role = 'admin' WHERE LOWER(email) = LOWER(?)", (email,))
+    conn.commit()
+    conn.close()
+    login_resp = client.post("/api/auth/login", json={"email": email, "password": pw})
     assert login_resp.status_code == 200, f"Admin login failed: {login_resp.text}"
     return login_resp.json()["access_token"]
 
@@ -30,13 +48,22 @@ def test_api_me_anonymous_returns_401(client: TestClient):
 
 def test_api_me_authenticated_returns_real_db_counts(client: TestClient):
     """Authenticated user receives profile with real database counts."""
-    token = get_customer_token(client)
+    email = f"shopper_{secrets.token_hex(4)}@moss.internal"
+    pw = make_random_password()
+    reg = client.post("/api/auth/register", json={
+        "email": email,
+        "password": pw,
+        "full_name": "Dynamic Shopper",
+        "phone": "9876543210",
+    })
+    assert reg.status_code == 201
+    token = reg.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     resp = client.get("/api/me", headers=headers)
     assert resp.status_code == 200
     data = resp.json()
-    assert data["email"] == "shopper@moss.internal"
+    assert data["email"] == email
     assert "full_name" in data
     assert "role" in data
     assert "orders_count" in data

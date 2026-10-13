@@ -118,13 +118,46 @@ def check_startup_prerequisites() -> Tuple[bool, List[str], List[str]]:
         except ValueError:
             missing_env_vars.append("PORT (Invalid: must be a numeric integer)")
 
-    # DATABASE_URL validation if set
-    db_url = os.getenv("DATABASE_URL")
-    if db_url is not None and not db_url.strip():
-        missing_env_vars.append("DATABASE_URL (Invalid: set to empty string)")
+    # 3. Production Demo Account Security Warning
+    if is_production:
+        check_production_demo_accounts()
 
     is_valid = (len(missing_files) == 0 and len(missing_env_vars) == 0)
     return is_valid, missing_files, missing_env_vars
+
+
+def check_production_demo_accounts() -> List[str]:
+    """
+    Checks if known demo user accounts (e.g. admin@moss.internal, shopper@moss.internal)
+    exist in the database when running in production mode.
+    Logs and displays a high-visibility security warning.
+    """
+    found_emails: List[str] = []
+    try:
+        from backend.app.db.session import SessionLocal
+        from backend.app.db.models import User
+        db = SessionLocal()
+        try:
+            demo_emails = ["admin@moss.internal", "shopper@moss.internal"]
+            found_users = db.query(User).filter(User.email.in_(demo_emails)).all()
+            if found_users:
+                found_emails = [u.email for u in found_users]
+                warning_banner = (
+                    "\n" + "!" * 80 + "\n"
+                    f"[SECURITY WARNING] Known demo account(s) {found_emails} exist in the database "
+                    "while running in PRODUCTION mode!\n"
+                    "Demo accounts must be removed or deactivated in production to prevent security vulnerabilities.\n"
+                    + "!" * 80 + "\n"
+                )
+                logger.warning(warning_banner)
+                sys.stderr.write(warning_banner)
+                sys.stderr.flush()
+        finally:
+            db.close()
+    except Exception as exc:
+        logger.debug(f"Demo accounts check skipped: {exc}")
+    return found_emails
+
 
 
 def build_failure_message(missing_files: List[str], missing_env_vars: List[str]) -> str:

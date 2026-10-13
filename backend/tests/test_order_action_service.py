@@ -117,7 +117,8 @@ def setup_test_users_and_orders():
     # 1. Create User A and User B
     cursor.execute("DELETE FROM users WHERE email IN ('usera_action@test.com', 'userb_action@test.com')")
     from backend.app.auth.security import hash_password, create_access_token
-    pwd_hash = hash_password("password123")
+    from backend.tests.conftest import make_random_password
+    pwd_hash = hash_password(make_random_password())
 
     cursor.execute("""
         INSERT INTO users (email, full_name, hashed_password, is_active, role)

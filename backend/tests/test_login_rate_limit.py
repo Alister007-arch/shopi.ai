@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from backend.app.auth.router import LOGIN_ATTEMPTS
+from backend.tests.conftest import make_random_password
 
 
 def test_login_rate_limiting_enforces_429_with_retry_after(client: TestClient):
@@ -11,9 +12,11 @@ def test_login_rate_limiting_enforces_429_with_retry_after(client: TestClient):
     3. Error detail message informs the user of the live remaining wait time.
     """
     user_email = "ratelimit.victim@trovi.internal"
+    pw = make_random_password()
+    wrong_pw = pw + "_wrong"
     reg_resp = client.post("/api/auth/register", json={
         "email": user_email,
-        "password": "CorrectPassword@123",
+        "password": pw,
         "full_name": "Rate Limit Target",
     })
     assert reg_resp.status_code == 201
@@ -25,14 +28,14 @@ def test_login_rate_limiting_enforces_429_with_retry_after(client: TestClient):
     for attempt in range(1, 6):
         resp = client.post("/api/auth/login", json={
             "email": user_email,
-            "password": "WrongPassword@999",
+            "password": wrong_pw,
         })
         assert resp.status_code == 401, f"Attempt {attempt} expected 401, got {resp.status_code}"
 
     # 6th attempt must be blocked by rate limiter with 429
     resp_blocked = client.post("/api/auth/login", json={
         "email": user_email,
-        "password": "WrongPassword@999",
+        "password": wrong_pw,
     })
     assert resp_blocked.status_code == 429, f"Expected 429 Too Many Requests, got {resp_blocked.status_code}"
     
@@ -54,9 +57,11 @@ def test_successful_login_clears_rate_limit_history(client: TestClient):
     preventing premature lockout on subsequent valid logins.
     """
     user_email = "ratelimit.recovery@trovi.internal"
+    pw = make_random_password()
+    wrong_pw = pw + "_wrong"
     client.post("/api/auth/register", json={
         "email": user_email,
-        "password": "SecurePassword@123",
+        "password": pw,
         "full_name": "Recovery User",
     })
 
@@ -66,7 +71,7 @@ def test_successful_login_clears_rate_limit_history(client: TestClient):
     for _ in range(2):
         client.post("/api/auth/login", json={
             "email": user_email,
-            "password": "IncorrectPassword@000",
+            "password": wrong_pw,
         })
 
     assert len(LOGIN_ATTEMPTS[user_email.lower()]) == 2
@@ -74,9 +79,10 @@ def test_successful_login_clears_rate_limit_history(client: TestClient):
     # Successful login
     succ_resp = client.post("/api/auth/login", json={
         "email": user_email,
-        "password": "SecurePassword@123",
+        "password": pw,
     })
     assert succ_resp.status_code == 200
 
     # History should be cleared
     assert user_email.lower() not in LOGIN_ATTEMPTS or len(LOGIN_ATTEMPTS[user_email.lower()]) == 0
+

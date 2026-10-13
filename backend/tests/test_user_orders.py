@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+from backend.tests.conftest import make_random_password
 
 
 def test_authenticated_user_order_isolation(client: TestClient):
@@ -8,17 +9,19 @@ def test_authenticated_user_order_isolation(client: TestClient):
     User A cannot view User B's orders when calling GET /api/orders with Bearer token.
     """
     # 1. Register User A
+    pw_a = make_random_password()
     resp_a = client.post("/api/auth/register", json={
         "email": "user_alpha@moss.internal",
-        "password": "Password@123456",
+        "password": pw_a,
         "full_name": "Alpha User",
     })
     token_a = resp_a.json()["access_token"]
 
     # 2. Register User B
+    pw_b = make_random_password()
     resp_b = client.post("/api/auth/register", json={
         "email": "user_beta@moss.internal",
-        "password": "Password@123456",
+        "password": pw_b,
         "full_name": "Beta User",
     })
     token_b = resp_b.json()["access_token"]
@@ -95,9 +98,10 @@ def test_order_tracking_endpoint(client: TestClient):
     information with status, steps, items, and masked shipping address.
     """
     # 1. Register & Checkout
+    pw_track = make_random_password()
     reg = client.post("/api/auth/register", json={
         "email": "track_user@moss.internal",
-        "password": "Password@123456",
+        "password": pw_track,
         "full_name": "Tracking Tester",
     })
     token = reg.json()["access_token"]

@@ -64,28 +64,23 @@ def run_migration(sqlite_file: str, pg_url: str):
         session_pg.commit()
         print(f"Successfully migrated {len(products)} products.")
 
-        # 2. Seed Default Users if none
-        if session_pg.query(User).count() == 0:
-            print("Seeding initial administrator and demo customer...")
-            admin = User(
-                email="admin@moss.internal",
-                hashed_password=hash_password("Admin@123456"),
-                full_name="Trovi Administrator",
-                role="admin",
-                is_active=True,
+        # 2. Migrate Users from SQLite if present
+        cur.execute("SELECT * FROM users")
+        user_rows = cur.fetchall()
+        for u in user_rows:
+            u_obj = User(
+                id=u["id"],
+                email=u["email"],
+                hashed_password=u["hashed_password"],
+                full_name=u["full_name"],
+                phone=u["phone"] if "phone" in u.keys() else None,
+                role=u["role"],
+                is_active=bool(u["is_active"]),
             )
-            shopper = User(
-                email="shopper@moss.internal",
-                hashed_password=hash_password("Shopper@123456"),
-                full_name="Aditi Sharma",
-                phone="9876543210",
-                role="customer",
-                is_active=True,
-            )
-            session_pg.add(admin)
-            session_pg.add(shopper)
-            session_pg.commit()
-            print("Users seeded.")
+            session_pg.merge(u_obj)
+        session_pg.commit()
+        print(f"Migrated {len(user_rows)} users from SQLite.")
+
 
         # 3. Migrate Orders & Order Items
         c_sqlite.execute("SELECT * FROM orders")

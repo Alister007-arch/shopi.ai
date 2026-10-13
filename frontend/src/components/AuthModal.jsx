@@ -706,28 +706,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
               </div>
 
               {tab === 'login' && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-                  <button
-                    id="auth-fill-demo-customer-btn"
-                    type="button"
-                    onClick={() => {
-                      setEmail('shopper@moss.internal');
-                      setPassword('Shopper@123456');
-                      setError(null);
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      padding: 0,
-                      color: 'var(--moss-deep, #1b2a20)',
-                      fontSize: '0.76rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      textDecoration: 'underline',
-                    }}
-                  >
-                    Demo Shopper Login
-                  </button>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: 6 }}>
+
                   <button
                     id="auth-forgot-password-link"
                     type="button"

@@ -3,26 +3,46 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+import secrets
+from backend.tests.conftest import make_random_password
+import backend.tools as tools
+
+
 def get_admin_headers(client: TestClient) -> dict:
-    """Helper to authenticate as seeded admin and obtain authorization headers."""
-    login_resp = client.post("/api/auth/login", json={
-        "email": "admin@moss.internal",
-        "password": "Admin@123456",
+    """Helper to dynamically create an admin user and obtain authorization headers."""
+    email = f"admin_{secrets.token_hex(4)}@moss.internal"
+    pw = make_random_password()
+    client.post("/api/auth/register", json={
+        "email": email,
+        "password": pw,
+        "full_name": "Admin Tester",
+        "phone": "9876543210",
     })
+    conn = tools.get_db_connection()
+    c = conn.cursor()
+    c.execute("UPDATE users SET role = 'admin' WHERE LOWER(email) = LOWER(?)", (email,))
+    conn.commit()
+    conn.close()
+    login_resp = client.post("/api/auth/login", json={"email": email, "password": pw})
     assert login_resp.status_code == 200, f"Admin login failed: {login_resp.text}"
     token = login_resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
 def get_customer_headers(client: TestClient) -> dict:
-    """Helper to authenticate as seeded customer and obtain authorization headers."""
-    login_resp = client.post("/api/auth/login", json={
-        "email": "shopper@moss.internal",
-        "password": "Shopper@123456",
+    """Helper to dynamically create a customer user and obtain authorization headers."""
+    email = f"cust_{secrets.token_hex(4)}@moss.internal"
+    pw = make_random_password()
+    reg = client.post("/api/auth/register", json={
+        "email": email,
+        "password": pw,
+        "full_name": "Customer Tester",
+        "phone": "9876543210",
     })
-    assert login_resp.status_code == 200, f"Customer login failed: {login_resp.text}"
-    token = login_resp.json()["access_token"]
+    assert reg.status_code == 201, f"Customer registration failed: {reg.text}"
+    token = reg.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
 
 
 # ---------------------------------------------------------------------------

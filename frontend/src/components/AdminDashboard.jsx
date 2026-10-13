@@ -580,12 +580,8 @@ export default function AdminDashboard({ onClose, onProductUpdated, currentUser:
     }
   };
 
-  const handleQuickAdminLogin = () => {
-    setAdminLoginForm({ email: 'admin@moss.internal', password: 'Admin@123456' });
-    handleAdminLogin(null, 'admin@moss.internal', 'Admin@123456');
-  };
-
   const handleSignOutToSwitch = () => {
+
     authApi.logout();
     setCurrentUser(null);
     if (onAdminLoginSuccess) {
@@ -798,56 +794,8 @@ export default function AdminDashboard({ onClose, onProductUpdated, currentUser:
                 </div>
               )}
 
-              {/* Fast 1-Click Demo Admin Access Banner (Visible only when VITE_DEMO_MODE is enabled) */}
-              {isDemoMode && (
-                <div style={{
-                  background: 'var(--moss-tint)',
-                  border: '1.5px solid var(--moss-border)',
-                  borderRadius: 10,
-                  padding: '12px 16px',
-                  marginBottom: 18,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                  textAlign: 'left',
-                }}>
-                  <div>
-                    <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--moss-deep)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Zap size={15} color="var(--clay-terracotta)" />
-                      Demo Admin Credentials
-                    </div>
-                    <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-                      <strong>admin@moss.internal</strong> / <strong>Admin@123456</strong>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleQuickAdminLogin}
-                    disabled={authSubmitting}
-                    style={{
-                      background: 'var(--moss-deep)',
-                      color: '#ffffff',
-                      border: 'none',
-                      padding: '8px 16px',
-                      borderRadius: 8,
-                      fontSize: '0.82rem',
-                      fontWeight: 700,
-                      cursor: authSubmitting ? 'not-allowed' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      whiteSpace: 'nowrap',
-                      boxShadow: '0 2px 6px rgba(44, 62, 45, 0.2)',
-                    }}
-                  >
-                    <Zap size={14} color="#fcd34d" />
-                    {authSubmitting ? 'Signing in...' : '1-Click Sign In'}
-                  </button>
-                </div>
-              )}
-
               {authError && (
+
                 <div
                   style={{
                     padding: '10px 14px',
@@ -906,30 +854,8 @@ export default function AdminDashboard({ onClose, onProductUpdated, currentUser:
                       fontSize: '0.88rem',
                     }}
                   />
-                  {isDemoMode && (
-                    <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                        Password: <strong>Admin@123456</strong>
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setAdminLoginForm({ email: 'admin@moss.internal', password: 'Admin@123456' })}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--moss-deep)',
-                          fontSize: '0.74rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          textDecoration: 'underline',
-                          padding: 0,
-                        }}
-                      >
-                        Fill Defaults
-                      </button>
-                    </div>
-                  )}
                 </div>
+
 
                 <button
                   type="submit"

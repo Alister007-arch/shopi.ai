@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+from backend.tests.conftest import make_random_password
 
 
 def test_auth_registration_success(client: TestClient):
@@ -7,9 +8,10 @@ def test_auth_registration_success(client: TestClient):
     Validates user registration with valid email, strong password,
     full name, and Indian mobile number.
     """
+    pw = make_random_password()
     payload = {
         "email": "priya.nair@moss.internal",
-        "password": "SecurePassword@123",
+        "password": pw,
         "full_name": "Priya Nair",
         "phone": "9812345678",
     }
@@ -27,9 +29,10 @@ def test_auth_registration_success(client: TestClient):
 
 def test_auth_registration_duplicate_email_rejected(client: TestClient):
     """Registration with an already existing email must return 400 Bad Request."""
+    pw = make_random_password()
     payload = {
         "email": "duplicate@moss.internal",
-        "password": "Password@123",
+        "password": pw,
         "full_name": "Original User",
     }
     resp1 = client.post("/api/auth/register", json=payload)
@@ -54,9 +57,10 @@ def test_auth_registration_short_password_rejected(client: TestClient):
 
 def test_auth_registration_invalid_indian_phone_rejected(client: TestClient):
     """Non-Indian phone numbers must be rejected with 422."""
+    pw = make_random_password()
     payload = {
         "email": "badphone@moss.internal",
-        "password": "ValidPassword@123",
+        "password": pw,
         "full_name": "Test User",
         "phone": "12345",  # Invalid
     }
@@ -66,25 +70,27 @@ def test_auth_registration_invalid_indian_phone_rejected(client: TestClient):
 
 def test_auth_login_success_and_failure(client: TestClient):
     """Tests successful authentication and rejection on incorrect password."""
+    pw = make_random_password()
     # Register user
     client.post("/api/auth/register", json={
         "email": "login.test@moss.internal",
-        "password": "CorrectPassword@123",
+        "password": pw,
         "full_name": "Login Tester",
     })
 
     # Successful login
     resp_success = client.post("/api/auth/login", json={
         "email": "login.test@moss.internal",
-        "password": "CorrectPassword@123",
+        "password": pw,
     })
     assert resp_success.status_code == 200
     assert "access_token" in resp_success.json()
 
     # Incorrect password login
+    wrong_pw = pw + "_wrong"
     resp_fail = client.post("/api/auth/login", json={
         "email": "login.test@moss.internal",
-        "password": "WrongPassword@999",
+        "password": wrong_pw,
     })
     assert resp_fail.status_code == 401
     err_msg = (resp_fail.json().get("detail") or resp_fail.json().get("message") or "").lower()
@@ -108,9 +114,10 @@ def test_auth_profile_me_endpoint(client: TestClient):
     assert resp_forged.status_code == 401
 
     # 3. Authenticated request
+    pw = make_random_password()
     reg_resp = client.post("/api/auth/register", json={
         "email": "me.test@moss.internal",
-        "password": "MySecretPassword@123",
+        "password": pw,
         "full_name": "Me Tester",
     })
     token = reg_resp.json()["access_token"]
@@ -126,9 +133,10 @@ def test_auth_profile_me_endpoint(client: TestClient):
 
 def test_auth_token_refresh(client: TestClient):
     """Validates refreshing an access token using a valid refresh token."""
+    pw = make_random_password()
     reg_resp = client.post("/api/auth/register", json={
         "email": "refresh.test@moss.internal",
-        "password": "RefreshPassword@123",
+        "password": pw,
         "full_name": "Refresh Tester",
     })
     refresh_token = reg_resp.json()["refresh_token"]
@@ -136,3 +144,4 @@ def test_auth_token_refresh(client: TestClient):
     ref_resp = client.post("/api/auth/refresh", json={"refresh_token": refresh_token})
     assert ref_resp.status_code == 200
     assert "access_token" in ref_resp.json()
+

@@ -63,9 +63,12 @@ def test_forgot_password_multi_channel_sms_and_whatsapp(client: TestClient):
     user_email = "multichannel.user@trovi.internal"
     user_phone = "9876512345"
 
+    from backend.tests.conftest import make_random_password
+    init_pw = make_random_password()
+    new_pw = make_random_password()
     reg_resp = client.post("/api/auth/register", json={
         "email": user_email,
-        "password": "InitialPassword@123",
+        "password": init_pw,
         "full_name": "MultiChannel Tester",
         "phone": user_phone,
     })
@@ -101,7 +104,7 @@ def test_forgot_password_multi_channel_sms_and_whatsapp(client: TestClient):
     reset_resp = client.post("/api/auth/reset-password", json={
         "phone": user_phone,
         "code": sms_code,
-        "new_password": "NewSmsPassword@456",
+        "new_password": new_pw,
     })
     assert reset_resp.status_code == 200
     assert reset_resp.json()["status"] == "success"
@@ -109,7 +112,7 @@ def test_forgot_password_multi_channel_sms_and_whatsapp(client: TestClient):
     # Verify login with new password
     login_resp = client.post("/api/auth/login", json={
         "email": user_email,
-        "password": "NewSmsPassword@456",
+        "password": new_pw,
     })
     assert login_resp.status_code == 200
 

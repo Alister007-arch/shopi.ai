@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 from backend.app.db.session import get_engine
 from backend.app.db.models import PasswordResetCode, User
+from backend.tests.conftest import make_random_password
 
 
 def get_test_db():
@@ -21,7 +22,7 @@ def test_forgot_password_generates_code_and_protects_security(client: TestClient
     user_email = "forgot.test1@trovi.internal"
     client.post("/api/auth/register", json={
         "email": user_email,
-        "password": "InitialPassword@123",
+        "password": make_random_password(),
         "full_name": "Reset Tester One",
     })
 
@@ -77,9 +78,11 @@ def test_reset_password_full_flow(client: TestClient):
     5. Old password rejected, new password authenticated
     """
     user_email = "lifecycle.test@trovi.internal"
+    old_pw = make_random_password()
+    new_pw = make_random_password()
     client.post("/api/auth/register", json={
         "email": user_email,
-        "password": "OldPassword@123",
+        "password": old_pw,
         "full_name": "Lifecycle Tester",
     })
 
@@ -104,7 +107,7 @@ def test_reset_password_full_flow(client: TestClient):
     reset_resp = client.post("/api/auth/reset-password", json={
         "email": user_email,
         "code": code,
-        "new_password": "NewSecretPassword@456",
+        "new_password": new_pw,
     })
     assert reset_resp.status_code == 200
     assert reset_resp.json()["status"] == "success"
@@ -112,14 +115,14 @@ def test_reset_password_full_flow(client: TestClient):
     # Old password must fail
     old_login = client.post("/api/auth/login", json={
         "email": user_email,
-        "password": "OldPassword@123",
+        "password": old_pw,
     })
     assert old_login.status_code == 401
 
     # New password must succeed
     new_login = client.post("/api/auth/login", json={
         "email": user_email,
-        "password": "NewSecretPassword@456",
+        "password": new_pw,
     })
     assert new_login.status_code == 200
     assert "access_token" in new_login.json()
@@ -128,9 +131,11 @@ def test_reset_password_full_flow(client: TestClient):
 def test_reset_password_invalid_code_rejected(client: TestClient):
     """Submitting an incorrect code must be rejected with 400 Bad Request."""
     user_email = "invalid.code@trovi.internal"
+    init_pw = make_random_password()
+    next_pw = make_random_password()
     client.post("/api/auth/register", json={
         "email": user_email,
-        "password": "MyInitialPass@123",
+        "password": init_pw,
         "full_name": "Invalid Code Tester",
     })
 
@@ -139,7 +144,7 @@ def test_reset_password_invalid_code_rejected(client: TestClient):
     resp = client.post("/api/auth/reset-password", json={
         "email": user_email,
         "code": "000000",  # deliberate invalid code
-        "new_password": "NewPassword@123",
+        "new_password": next_pw,
     })
     assert resp.status_code == 400
     assert "invalid or expired" in resp.json()["detail"].lower()
@@ -148,9 +153,11 @@ def test_reset_password_invalid_code_rejected(client: TestClient):
 def test_reset_password_expired_code_rejected(client: TestClient):
     """Expired codes must be rejected with 400."""
     user_email = "expired.code@trovi.internal"
+    init_pw = make_random_password()
+    next_pw = make_random_password()
     client.post("/api/auth/register", json={
         "email": user_email,
-        "password": "MyInitialPass@123",
+        "password": init_pw,
         "full_name": "Expired Code Tester",
     })
 
@@ -171,7 +178,7 @@ def test_reset_password_expired_code_rejected(client: TestClient):
     resp = client.post("/api/auth/reset-password", json={
         "email": user_email,
         "code": "654321",
-        "new_password": "BrandNewPassword@123",
+        "new_password": next_pw,
     })
     assert resp.status_code == 400
     assert "expired" in resp.json()["detail"].lower()
@@ -180,9 +187,12 @@ def test_reset_password_expired_code_rejected(client: TestClient):
 def test_reset_password_code_single_use(client: TestClient):
     """A reset code cannot be reused once consumed."""
     user_email = "singleuse@trovi.internal"
+    pw1 = make_random_password()
+    pw2 = make_random_password()
+    pw3 = make_random_password()
     client.post("/api/auth/register", json={
         "email": user_email,
-        "password": "PasswordOne@123",
+        "password": pw1,
         "full_name": "Single Use Tester",
     })
 
@@ -203,7 +213,7 @@ def test_reset_password_code_single_use(client: TestClient):
     resp1 = client.post("/api/auth/reset-password", json={
         "email": user_email,
         "code": code,
-        "new_password": "PasswordTwo@123",
+        "new_password": pw2,
     })
     assert resp1.status_code == 200
 
@@ -211,7 +221,8 @@ def test_reset_password_code_single_use(client: TestClient):
     resp2 = client.post("/api/auth/reset-password", json={
         "email": user_email,
         "code": code,
-        "new_password": "PasswordThree@123",
+        "new_password": pw3,
     })
     assert resp2.status_code == 400
     assert "invalid or expired" in resp2.json()["detail"].lower()
+

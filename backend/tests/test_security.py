@@ -44,10 +44,12 @@ def test_scoped_orders_privacy(client: TestClient):
     and does not leak other users' orders. Anonymous calls return 401.
     User A cannot read User B's order by ID (returns 404).
     """
+    from backend.tests.conftest import make_random_password
     # Register User A (Alice)
+    pw_a = make_random_password()
     resp_a = client.post("/api/auth/register", json={
         "email": "alice_sec@moss.internal",
-        "password": "Password@12345",
+        "password": pw_a,
         "full_name": "Alice User",
         "phone": "9812345671",
     })
@@ -55,9 +57,10 @@ def test_scoped_orders_privacy(client: TestClient):
     headers_a = {"Authorization": f"Bearer {token_a}"}
 
     # Register User B (Bob)
+    pw_b = make_random_password()
     resp_b = client.post("/api/auth/register", json={
         "email": "bob_sec@moss.internal",
-        "password": "Password@12345",
+        "password": pw_b,
         "full_name": "Bob User",
         "phone": "9812345672",
     })

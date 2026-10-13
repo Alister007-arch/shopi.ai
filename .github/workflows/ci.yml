@@ -7,6 +7,20 @@ on:
     branches: [ "main", "upgrade/production" ]
 
 jobs:
+  secret-scan:
+    name: Secret Scanning (TruffleHog)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog Secret Scan
+        uses: trufflesecurity/trufflehog-actions-scan@v3
+        with:
+          extra_args: --only-verified
+
   backend-tests:
     name: Backend Test Suite (Pytest & Safety)
     runs-on: ubuntu-latest

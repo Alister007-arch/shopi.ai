@@ -118,3 +118,32 @@ def test_run_startup_self_check_raises_runtime_error_when_configured(monkeypatch
     with pytest.raises(RuntimeError) as exc_info:
         run_startup_self_check(exit_on_failure=False, raise_exception=True)
     assert "Startup self-check failed" in str(exc_info.value)
+
+
+def test_startup_check_production_warns_on_demo_account(monkeypatch, test_db_path):
+    """When running in production mode and a known demo account exists in the DB, a warning is logged and returned."""
+    from backend.app.startup_check import check_production_demo_accounts
+    from backend.app.db.session import SessionLocal
+    from backend.app.db.models import User
+    from backend.app.auth.security import hash_password
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.email == "admin@moss.internal").first()
+        if not user:
+            user = User(
+                email="admin@moss.internal",
+                hashed_password=hash_password("DummyHash123!"),
+                full_name="Demo Admin",
+                role="admin",
+                is_active=True,
+            )
+            db.add(user)
+            db.commit()
+    finally:
+        db.close()
+
+    monkeypatch.setenv("APP_ENV", "production")
+    detected = check_production_demo_accounts()
+    assert "admin@moss.internal" in detected
+

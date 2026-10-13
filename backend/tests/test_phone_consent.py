@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 from backend.app.db.session import get_engine
 from backend.app.db.models import User
+from backend.tests.conftest import make_random_password
 
 
 def get_test_db():
@@ -20,7 +21,7 @@ def test_register_with_phone_and_consent(client: TestClient):
 
     resp = client.post("/api/auth/register", json={
         "email": email,
-        "password": "StrongPassword@123",
+        "password": make_random_password(),
         "full_name": "Consent Customer",
         "phone": phone,
         "phone_consent": True,
@@ -51,7 +52,7 @@ def test_register_without_phone_ignores_consent(client: TestClient):
 
     resp = client.post("/api/auth/register", json={
         "email": email,
-        "password": "StrongPassword@123",
+        "password": make_random_password(),
         "full_name": "No Phone Customer",
         "phone_consent": True,
     })
@@ -77,7 +78,7 @@ def test_update_profile_phone_and_consent(client: TestClient):
     email = "update.consent@trovi.internal"
     reg_resp = client.post("/api/auth/register", json={
         "email": email,
-        "password": "StrongPassword@123",
+        "password": make_random_password(),
         "full_name": "Updatable User",
         "phone": "9811122233",
         "phone_consent": False,
@@ -119,7 +120,7 @@ def test_api_me_returns_phone_consent(client: TestClient):
     email = "me.consent@trovi.internal"
     reg_resp = client.post("/api/auth/register", json={
         "email": email,
-        "password": "StrongPassword@123",
+        "password": make_random_password(),
         "full_name": "Me Endpoint User",
         "phone": "9988776655",
         "phone_consent": True,
@@ -154,8 +155,9 @@ def test_phone_validation_rejects_invalid_indian_numbers(client: TestClient):
     for num in invalid_numbers:
         resp = client.post("/api/auth/register", json={
             "email": f"badphone_{num}@trovi.internal",
-            "password": "StrongPassword@123",
+            "password": make_random_password(),
             "full_name": "Invalid Phone User",
             "phone": num,
         })
         assert resp.status_code == 422, f"Expected 422 for phone {num}, got {resp.status_code}"
+

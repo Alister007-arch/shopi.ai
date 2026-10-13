@@ -7,19 +7,32 @@ import json
 import io
 import pytest
 from fastapi.testclient import TestClient
+import secrets
+from backend.tests.conftest import make_random_password
 from backend.app.catalog.categories import CATEGORY_TREE, CATEGORY_ATTRIBUTE_SCHEMAS
 from backend.app.policies.loader import get_store_policies
 import tools
 
 
 def get_admin_auth_headers(client: TestClient) -> dict:
-    """Helper to authenticate as admin and obtain admin bearer headers."""
-    resp = client.post("/api/auth/login", json={
-        "email": "admin@moss.internal",
-        "password": "Admin@123456",
+    """Helper to dynamically create an admin user and obtain authorization headers."""
+    email = f"admin_{secrets.token_hex(4)}@moss.internal"
+    pw = make_random_password()
+    resp = client.post("/api/auth/register", json={
+        "email": email,
+        "password": pw,
+        "full_name": "Dynamic Admin",
+        "phone": "9876543210",
     })
-    assert resp.status_code == 200, f"Admin login failed: {resp.text}"
-    token = resp.json()["access_token"]
+    assert resp.status_code == 201, f"Admin register failed: {resp.text}"
+    conn = tools.get_db_connection()
+    c = conn.cursor()
+    c.execute("UPDATE users SET role = 'admin' WHERE LOWER(email) = LOWER(?)", (email,))
+    conn.commit()
+    conn.close()
+    login_resp = client.post("/api/auth/login", json={"email": email, "password": pw})
+    assert login_resp.status_code == 200, f"Admin login failed: {login_resp.text}"
+    token = login_resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 

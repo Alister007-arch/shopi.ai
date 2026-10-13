@@ -40,31 +40,75 @@ def seed_database(db: Session = None):
         own_session = True
 
     try:
-        # 1. Seed Default Users
-        admin = db.query(User).filter(User.email == "admin@moss.internal").first()
-        if not admin:
-            admin = User(
-                email="admin@moss.internal",
-                hashed_password=hash_password("Admin@123456"),
-                full_name="Trovi Administrator",
-                role="admin",
-                is_active=True,
-            )
-            db.add(admin)
+        # 1. Administrator Account from Environment Variables
+        app_env = os.getenv("APP_ENV", os.getenv("ENVIRONMENT", "development")).lower().strip()
+        demo_mode = os.getenv("DEMO_MODE", "false").lower().strip() in ("true", "1", "yes")
 
-        shopper = db.query(User).filter(User.email == "shopper@moss.internal").first()
-        if not shopper:
-            shopper = User(
-                email="shopper@moss.internal",
-                hashed_password=hash_password("Shopper@123456"),
-                full_name="Aditi Sharma",
-                phone="9876543210",
-                role="customer",
-                is_active=True,
+        admin_email = os.getenv("ADMIN_EMAIL")
+        admin_password = os.getenv("ADMIN_PASSWORD")
+
+        if admin_email and admin_password and admin_email.strip() and admin_password.strip():
+            clean_admin_email = admin_email.strip().lower()
+            existing_admin = db.query(User).filter(User.email == clean_admin_email).first()
+            if not existing_admin:
+                admin = User(
+                    email=clean_admin_email,
+                    hashed_password=hash_password(admin_password.strip()),
+                    full_name="Trovi Administrator",
+                    role="admin",
+                    is_active=True,
+                )
+                db.add(admin)
+                logger.info(f"[DB Seed] Created initial administrator account for '{clean_admin_email}'.")
+        else:
+            logger.warning(
+                "[DB Seed Warning] ADMIN_EMAIL or ADMIN_PASSWORD not configured. Initial admin account creation skipped. (No default password)"
             )
-            db.add(shopper)
+
+        # 2. Demo Users (Created ONLY when APP_ENV in ('dev', 'development') and DEMO_MODE=true)
+        if app_env in ("dev", "development") and demo_mode:
+            import secrets
+            import string
+
+            def _gen_random_pw(length: int = 16) -> str:
+                chars = string.ascii_letters + string.digits + "!@#$%^&*"
+                return "".join(secrets.choice(chars) for _ in range(length))
+
+            demo_admin = db.query(User).filter(User.email == "admin@moss.internal").first()
+            if not demo_admin:
+                demo_admin_pw = _gen_random_pw()
+                demo_admin = User(
+                    email="admin@moss.internal",
+                    hashed_password=hash_password(demo_admin_pw),
+                    full_name="Trovi Administrator (Demo)",
+                    role="admin",
+                    is_active=True,
+                )
+                db.add(demo_admin)
+                print(
+                    f"\n[DEMO MODE INITIALIZED]\nDemo Admin: admin@moss.internal | Generated Password: {demo_admin_pw}\nNever use demo accounts in production.\n",
+                    flush=True,
+                )
+
+            demo_shopper = db.query(User).filter(User.email == "shopper@moss.internal").first()
+            if not demo_shopper:
+                demo_shopper_pw = _gen_random_pw()
+                demo_shopper = User(
+                    email="shopper@moss.internal",
+                    hashed_password=hash_password(demo_shopper_pw),
+                    full_name="Aditi Sharma (Demo)",
+                    phone="9876543210",
+                    role="customer",
+                    is_active=True,
+                )
+                db.add(demo_shopper)
+                print(
+                    f"[DEMO MODE INITIALIZED]\nDemo Shopper: shopper@moss.internal | Generated Password: {demo_shopper_pw}\n",
+                    flush=True,
+                )
 
         db.commit()
+
 
         # 2. Check if products exist in SQLAlchemy (sync if missing or upgraded)
         sqlite_path = os.environ.get("SHOPI_DB_PATH", os.path.join(os.path.dirname(__file__), "..", "..", "shopai.db"))

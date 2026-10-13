@@ -1,6 +1,7 @@
 import json
 import pytest
 from fastapi.testclient import TestClient
+from backend.tests.conftest import make_random_password
 
 
 def test_anonymous_checkout_returns_401(client: TestClient):
@@ -22,18 +23,20 @@ def test_anonymous_checkout_returns_401(client: TestClient):
 def test_user_a_cannot_read_user_b_order(client: TestClient):
     """User A cannot read User B's order (returns 404 for isolation)."""
     # 1. Register User A
+    pw_a = make_random_password()
     resp_a = client.post("/api/auth/register", json={
         "email": "alice_privacy@moss.eco",
-        "password": "Password@123456",
+        "password": pw_a,
         "full_name": "Alice Privacy",
     })
     assert resp_a.status_code == 201
     token_a = resp_a.json()["access_token"]
 
     # 2. Register User B
+    pw_b = make_random_password()
     resp_b = client.post("/api/auth/register", json={
         "email": "bob_privacy@moss.eco",
-        "password": "Password@123456",
+        "password": pw_b,
         "full_name": "Bob Privacy",
     })
     assert resp_b.status_code == 201
@@ -90,9 +93,10 @@ def test_user_a_cannot_read_user_b_order(client: TestClient):
 def test_guest_cart_merged_after_login(client: TestClient):
     """Guest cart is merged after login with no duplicates, summed quantities, capped at stock."""
     # 1. Register a user
+    pw_user = make_random_password()
     resp_user = client.post("/api/auth/register", json={
         "email": "cart_merge_tester@moss.eco",
-        "password": "Password@123456",
+        "password": pw_user,
         "full_name": "Merge Tester",
     })
     assert resp_user.status_code == 201
@@ -168,9 +172,10 @@ def test_agent_refuses_order_for_guest_and_succeeds_for_signed_in_user(client: T
     assert g_data.get("order_bundle") is not None
 
     # 2. Register / login a user
+    pw_agent_shopper = make_random_password()
     user_resp = client.post("/api/auth/register", json={
         "email": "agent_shopper@moss.eco",
-        "password": "Password@123456",
+        "password": pw_agent_shopper,
         "full_name": "Agent Shopper",
     })
     token = user_resp.json()["access_token"]
@@ -205,9 +210,10 @@ def test_session_security_and_refresh_flow(client: TestClient):
     and rate limiting on repeated failed logins.
     """
     # 1. Register user
+    pw_sec = make_random_password()
     reg = client.post("/api/auth/register", json={
         "email": "sec_test_user@moss.eco",
-        "password": "Password@123456",
+        "password": pw_sec,
         "full_name": "Security Tester",
     })
     assert reg.status_code == 201

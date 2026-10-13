@@ -48,12 +48,29 @@ def client(test_db_path):
         yield test_client
 
 
+import secrets
+import string
+
+def make_random_password(length: int = 16) -> str:
+    """Generates a secure random password satisfying complexity requirements."""
+    chars = string.ascii_letters + string.digits + "!@#$%^&*"
+    return "T1!" + "".join(secrets.choice(chars) for _ in range(length - 3))
+
+
+@pytest.fixture
+def random_password() -> str:
+    """Provides a fresh, secure random password for test cases."""
+    return make_random_password()
+
+
 @pytest.fixture
 def auth_headers(client):
-    """Provides valid JWT Bearer auth headers for testing."""
+    """Provides valid JWT Bearer auth headers for testing with dynamic credentials."""
+    user_email = f"test_user_{secrets.token_hex(4)}@moss.internal"
+    user_pw = make_random_password()
     reg_resp = client.post("/api/auth/register", json={
-        "email": "test_fixture_user@moss.eco",
-        "password": "Password@123456",
+        "email": user_email,
+        "password": user_pw,
         "full_name": "Test Fixture User",
         "phone": "9876543210",
     })
@@ -61,9 +78,68 @@ def auth_headers(client):
         token = reg_resp.json()["access_token"]
     else:
         login_resp = client.post("/api/auth/login", json={
-            "email": "test_fixture_user@moss.eco",
-            "password": "Password@123456",
+            "email": user_email,
+            "password": user_pw,
         })
         token = login_resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def customer_user(client):
+    """Dynamically creates a verified customer with random credentials."""
+    email = f"cust_{secrets.token_hex(4)}@moss.internal"
+    password = make_random_password()
+    resp = client.post("/api/auth/register", json={
+        "email": email,
+        "password": password,
+        "full_name": "Dynamic Test Customer",
+        "phone": "9876543210",
+    })
+    token = resp.json()["access_token"]
+    return {
+        "email": email,
+        "password": password,
+        "token": token,
+        "headers": {"Authorization": f"Bearer {token}"},
+    }
+
+
+@pytest.fixture
+def admin_user(client):
+    """Dynamically creates an administrator user with random credentials."""
+    email = f"admin_{secrets.token_hex(4)}@moss.internal"
+    password = make_random_password()
+    resp = client.post("/api/auth/register", json={
+        "email": email,
+        "password": password,
+        "full_name": "Dynamic Test Admin",
+        "phone": "9876543210",
+    })
+    # Elevate role to admin in database
+    conn = tools.get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET role = 'admin' WHERE LOWER(email) = LOWER(?)", (email,))
+    conn.commit()
+    conn.close()
+
+    # Login to obtain fresh admin claims token
+    login_resp = client.post("/api/auth/login", json={
+        "email": email,
+        "password": password,
+    })
+    token = login_resp.json()["access_token"]
+    return {
+        "email": email,
+        "password": password,
+        "token": token,
+        "headers": {"Authorization": f"Bearer {token}"},
+    }
+
+
+@pytest.fixture
+def admin_auth_headers(admin_user):
+    """Provides admin authorization headers."""
+    return admin_user["headers"]
+
 
