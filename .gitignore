@@ -39,9 +39,9 @@ scratch/
 test-results/
 frontend/test-results/
 shopping agent/
-.github/
 
 # Operating System files
+
 .DS_Store
 Thumbs.db
 desktop.ini
