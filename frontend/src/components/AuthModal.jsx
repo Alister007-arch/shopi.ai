@@ -523,15 +523,15 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
           {(tab !== 'forgot' || (tab === 'forgot' && forgotStep === 'request' && channel === 'email')) && (
             <div>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
-                {tab === 'forgot' ? 'Registered Email Address *' : 'Email Address'}
+                {tab === 'login' ? 'Email Address or Mobile Number' : (tab === 'forgot' ? 'Registered Email Address *' : 'Email Address *')}
               </label>
               <div style={{ position: 'relative' }}>
                 <Mail size={16} style={{ position: 'absolute', left: 12, top: 11, color: '#94a3b8' }} />
                 <input
                   id="auth-email-input"
-                  type="email"
+                  type={tab === 'login' ? 'text' : 'email'}
                   required
-                  placeholder="you@domain.com"
+                  placeholder={tab === 'login' ? 'you@domain.com or 10-digit mobile' : 'you@domain.com'}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   style={{

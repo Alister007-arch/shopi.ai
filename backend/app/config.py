@@ -29,13 +29,16 @@ class Settings:
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
     # Database
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        os.getenv(
-            "SHOPI_DB_PATH",
-            f"sqlite:///{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'shopai.db'))}"
-        )
-    )
+    @property
+    def DATABASE_URL(self) -> str:
+        if os.getenv("DATABASE_URL"):
+            return os.getenv("DATABASE_URL")
+        if os.getenv("SHOPI_DB_PATH"):
+            return f"sqlite:///{os.path.abspath(os.getenv('SHOPI_DB_PATH'))}"
+        for mount_dir in ["/var/data", "/data"]:
+            if os.path.isdir(mount_dir) and os.access(mount_dir, os.W_OK):
+                return f"sqlite:///{os.path.join(mount_dir, 'shopai.db')}"
+        return f"sqlite:///{os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'shopai.db'))}"
 
     # Notifications & OTP Providers (SMTP, Twilio SMS & WhatsApp)
     SMTP_HOST: Optional[str] = os.getenv("SMTP_HOST")

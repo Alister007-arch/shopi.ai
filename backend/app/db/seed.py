@@ -60,10 +60,31 @@ def seed_database(db: Session = None):
                 )
                 db.add(admin)
                 logger.info(f"[DB Seed] Created initial administrator account for '{clean_admin_email}'.")
+            else:
+                existing_admin.hashed_password = hash_password(admin_password.strip())
+                existing_admin.role = "admin"
+                existing_admin.is_active = True
+                logger.info(f"[DB Seed] Synchronized administrator password for '{clean_admin_email}'.")
         else:
-            logger.warning(
-                "[DB Seed Warning] ADMIN_EMAIL or ADMIN_PASSWORD not configured. Initial admin account creation skipped. (No default password)"
-            )
+            # Default administrator accounts for instant out-of-the-box management
+            default_admin_pw = "Admin@12345"
+            for d_email in ["admin@trovi.store", "admin@moss.internal"]:
+                admin_obj = db.query(User).filter(User.email == d_email).first()
+                if not admin_obj:
+                    admin_obj = User(
+                        email=d_email,
+                        hashed_password=hash_password(default_admin_pw),
+                        full_name="Trovi Administrator",
+                        role="admin",
+                        is_active=True,
+                    )
+                    db.add(admin_obj)
+                    logger.info(f"[DB Seed] Provisioned default administrator account: {d_email}")
+                else:
+                    admin_obj.hashed_password = hash_password(default_admin_pw)
+                    admin_obj.role = "admin"
+                    admin_obj.is_active = True
+            logger.info("[DB Seed] Default admin accounts initialized (admin@trovi.store / Admin@12345). Set ADMIN_EMAIL & ADMIN_PASSWORD to customize.")
 
         # 2. Demo Users (Created ONLY when APP_ENV in ('dev', 'development') and DEMO_MODE=true)
         if app_env in ("dev", "development") and demo_mode:

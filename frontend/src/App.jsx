@@ -101,8 +101,11 @@ export default function App() {
       const isOrders = path === '/orders' || hash === '#/orders' || hash === '#orders';
       const isProfile = path === '/profile' || hash === '#/profile' || hash === '#profile';
       const isPolicies = path === '/policies' || hash === '#/policies' || hash === '#policies';
+      const isAdmin = path === '/admin' || hash === '#/admin' || hash === '#admin';
 
-      if (isPolicies) {
+      if (isAdmin) {
+        setIsAdminOpen(true);
+      } else if (isPolicies) {
         setActiveTab('policies');
       } else if (isCheckout) {
         if (!currentUser) {

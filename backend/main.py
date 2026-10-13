@@ -58,7 +58,15 @@ from backend.app.startup_check import run_startup_self_check
 run_startup_self_check(exit_on_failure=True)
 
 # Auto-seed database if missing
-DB_PATH = os.path.join(os.path.dirname(__file__), "shopai.db")
+def _resolve_db_path() -> str:
+    if os.getenv("SHOPI_DB_PATH"):
+        return os.path.abspath(os.getenv("SHOPI_DB_PATH"))
+    for mount_dir in ["/var/data", "/data"]:
+        if os.path.isdir(mount_dir) and os.access(mount_dir, os.W_OK):
+            return os.path.join(mount_dir, "shopai.db")
+    return os.path.join(os.path.dirname(__file__), "shopai.db")
+
+DB_PATH = _resolve_db_path()
 
 if not os.path.exists(DB_PATH):
     try:

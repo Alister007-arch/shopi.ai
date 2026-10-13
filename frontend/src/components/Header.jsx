@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Search, MapPin, Heart, ShoppingBag, Package, User, ChevronDown,
-  Sparkles, BarChart3, Camera, Check, Upload, ArrowRight, Zap, Leaf, Truck
+  Sparkles, BarChart3, Camera, Check, Upload, ArrowRight, Zap, Leaf, Truck, Shield
 } from 'lucide-react';
 import { lookupPincode } from '../utils/deliveryEngine';
 import { BRAND } from '../config/brand';
@@ -594,6 +594,31 @@ export default function Header({
                 <User size={13} color={activeTab === 'profile' ? '#ffffff' : 'var(--moss-deep)'} />
                 <span>{currentUser?.full_name || (currentUser?.email ? currentUser.email.split('@')[0] : 'Shopper')}</span>
               </button>
+              {currentUser?.role === 'admin' && (
+                <button
+                  id="header-admin-portal-btn"
+                  type="button"
+                  onClick={onOpenAdmin}
+                  style={{
+                    background: 'linear-gradient(135deg, #1b2a20 0%, #2e4a36 100%)',
+                    border: '1px solid #10b981',
+                    color: '#ffffff',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    padding: '5px 10px',
+                    borderRadius: 'var(--radius-full)',
+                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)',
+                  }}
+                  title="Open Enterprise Operations & Admin Dashboard"
+                >
+                  <Shield size={12} color="#10b981" />
+                  <span>Admin Console</span>
+                </button>
+              )}
               <button
                 id="header-orders-menu-btn"
                 type="button"
@@ -633,31 +658,55 @@ export default function Header({
               </button>
             </div>
           ) : (
-            <button
-              id="header-sign-in-btn"
-              type="button"
-              onClick={() => {
-                if (onOpenAuthModal) onOpenAuthModal({ message: "Sign in to place your order", returnTo: 'profile' });
-              }}
-              style={{
-                background: 'transparent',
-                border: '1px solid var(--moss-border)',
-                color: 'var(--moss-deep)',
-                fontSize: '0.82rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '6px 14px',
-                borderRadius: 'var(--radius-full)',
-                transition: 'all 0.2s',
-              }}
-              title={`Sign In to your ${BRAND.name} account`}
-            >
-              <User size={14} color="var(--moss-deep)" />
-              <span>Sign In</span>
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button
+                id="header-sign-in-btn"
+                type="button"
+                onClick={() => {
+                  if (onOpenAuthModal) onOpenAuthModal({ message: "Sign in to place your order", returnTo: 'profile' });
+                }}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--moss-border)',
+                  color: 'var(--moss-deep)',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 14px',
+                  borderRadius: 'var(--radius-full)',
+                  transition: 'all 0.2s',
+                }}
+                title={`Sign In to your ${BRAND.name} account`}
+              >
+                <User size={14} color="var(--moss-deep)" />
+                <span>Sign In</span>
+              </button>
+              <button
+                id="header-admin-login-btn"
+                type="button"
+                onClick={onOpenAdmin}
+                style={{
+                  background: 'var(--bg-card-muted)',
+                  border: '1px solid var(--moss-border)',
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.76rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '6px 10px',
+                  borderRadius: 'var(--radius-full)',
+                }}
+                title="Administrator Login Portal"
+              >
+                <Shield size={12} color="var(--moss-deep)" />
+                <span>Admin</span>
+              </button>
+            </div>
           )}
 
           {/* Wishlist Icon */}

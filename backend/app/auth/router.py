@@ -45,8 +45,19 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: str = Field(..., pattern=EMAIL_REGEX)
+    email: str = Field(..., description="Email address or 10-digit mobile number")
     password: str
+
+    @field_validator("email")
+    @classmethod
+    def validate_identifier(cls, v: str) -> str:
+        cleaned = v.strip()
+        digits_only = re.sub(r"[\s\-]", "", cleaned)
+        if re.match(r"^[6-9]\d{9}$", digits_only) or (digits_only.startswith("+91") and len(digits_only) == 13):
+            return digits_only[-10:]
+        if not re.match(EMAIL_REGEX, cleaned):
+            raise ValueError("Please enter a valid email address or 10-digit mobile number.")
+        return cleaned.lower()
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -169,10 +180,16 @@ def check_login_rate_limit(key: str):
 @router.post("/login", response_model=AuthResponse)
 def login(req: LoginRequest, db: Session = Depends(get_db)):
     """Authenticates user credentials and issues signed JWT tokens."""
-    email_key = req.email.lower().strip()
-    check_login_rate_limit(email_key)
+    identifier = req.email.lower().strip()
+    check_login_rate_limit(identifier)
 
-    user = db.query(User).filter(User.email == email_key).first()
+    from sqlalchemy import or_
+    user = db.query(User).filter(
+        or_(
+            User.email == identifier,
+            User.phone == identifier,
+        )
+    ).first()
     pw_matches = False
     if user and verify_password(req.password, user.hashed_password):
         pw_matches = True
@@ -185,7 +202,7 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         )
 
     # Clear rate limit history on success
-    LOGIN_ATTEMPTS.pop(email_key, None)
+    LOGIN_ATTEMPTS.pop(identifier, None)
 
     if not user.is_active:
         raise HTTPException(
