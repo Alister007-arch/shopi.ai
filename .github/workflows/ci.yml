@@ -62,6 +62,27 @@ jobs:
         run: |
           python backend/test_suite.py
 
+      - name: Verify Brand Rename (Zero legacy brand strings)
+        run: |
+          python scripts/verify_brand_rename.py
+
+      - name: CI Grep Check for Forbidden Brand Strings
+        run: |
+          echo "Scanning source files for legacy brand strings..."
+          MATCHES=$(git grep -i -E "ShopAI|shopi\.ai|MOSS CUSTOMER" -- \
+            ':!.github/workflows/ci.yml' \
+            ':!scripts/verify_brand_rename.py' \
+            ':!backend/tests/test_brand_rename.py' \
+            ':!backend/shopai.db' \
+            || true)
+          FILTERED=$(echo "$MATCHES" | grep -v -i -E "MOSS Organics|github\.com[/:].*shopi\.ai|shopai\.db|SHOPI_DB_PATH" || true)
+          if [ -n "$FILTERED" ]; then
+            echo "::error::Found forbidden legacy brand strings in source files:"
+            echo "$FILTERED"
+            exit 1
+          fi
+          echo "Brand rename CI grep check passed successfully."
+
   frontend-build:
     name: Frontend Build & Asset Verification
     runs-on: ubuntu-latest

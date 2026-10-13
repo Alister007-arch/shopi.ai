@@ -15,6 +15,10 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=8000
 
+LABEL org.opencontainers.image.title="Trovi" \
+      org.opencontainers.image.description="Trovi Conversational Commerce Platform" \
+      org.opencontainers.image.vendor="Trovi"
+
 # Install dependencies
 COPY backend/requirements.txt ./backend/
 RUN pip install --no-cache-dir -r backend/requirements.txt

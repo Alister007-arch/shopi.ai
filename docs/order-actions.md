@@ -2,7 +2,7 @@
 
 ## 1. Architectural Overview
 
-MOSS E-Commerce splits customer interactions into two strictly decoupled layers:
+Trovi E-Commerce splits customer interactions into two strictly decoupled layers:
 
 1. **LLM Agent (Conversation & Information Layer)**:
    - Handles natural language understanding, product recommendations, specifications, comparison, review intelligence, cart inspection, and store policies.

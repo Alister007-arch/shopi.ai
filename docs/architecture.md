@@ -67,7 +67,7 @@ graph TD
 
 ## 3. The Two-Step Agent Safety Boundary
 
-To prevent unauthorized order placement, price drift, or prompt-injection exploitation, MOSS enforces a **Two-Step Cryptographic Quote Pattern**:
+To prevent unauthorized order placement, price drift, or prompt-injection exploitation, Trovi enforces a **Two-Step Cryptographic Quote Pattern**:
 
 ```mermaid
 sequenceDiagram
@@ -105,7 +105,7 @@ sequenceDiagram
 
 ## 4. Concurrency & Flash-Sale Stock Lock Architecture
 
-To eliminate the stock oversell bug present in demo apps, MOSS utilizes pessimistic serialized execution:
+To eliminate the stock oversell bug present in demo apps, Trovi utilizes pessimistic serialized execution:
 
 ### SQLite Implementation
 ```sql
@@ -153,13 +153,13 @@ When an order transitions to `cancelled`:
 
 ## 6. Indian GST Tax Invoicing Subsystem
 
-Indian e-commerce compliance mandates itemized GST tax invoices. MOSS features an integrated reverse-calculation invoice generator:
+Indian e-commerce compliance mandates itemized GST tax invoices. Trovi features an integrated reverse-calculation invoice generator:
 
 - **Formula**:
   $$\text{Taxable Value} = \frac{\text{Total Paid}}{1 + \text{GST Rate}}$$
   $$\text{Total GST} = \text{Total Paid} - \text{Taxable Value}$$
   $$\text{CGST} = \frac{\text{Total GST}}{2}, \quad \text{SGST} = \frac{\text{Total GST}}{2}$$
-- **HSN Classification**: MOSS catalog includes assigned HSN codes (e.g., Honey: `0409`, Organic Oils: `1515`, Tea & Beverages: `0902`).
+- **HSN Classification**: Trovi catalog includes assigned HSN codes (e.g., Honey: `0409`, Organic Oils: `1515`, Tea & Beverages: `0902`).
 - **Export Formats**: Standard JSON response schema and print-ready standalone HTML invoices (`GET /api/order/{id}/invoice/html`).
 
 ---

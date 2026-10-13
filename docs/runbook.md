@@ -207,4 +207,4 @@ cd frontend && npm run build
 - **Health Check**: `GET /api/health` (Uptime, database connectivity status).
 
 ---
-*Maintained by MOSS Platform Engineering & Security Operations Team.*
+*Maintained by Trovi Platform Engineering & Security Operations Team.*
