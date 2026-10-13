@@ -223,21 +223,18 @@ def test_real_provider_smoke():
 # /api/health/llm Endpoint Tests
 # ---------------------------------------------------------------------------
 
-def test_health_llm_admin_endpoint():
-    client = TestClient(app)
-    
+def test_health_llm_admin_endpoint(client: TestClient, admin_auth_headers: dict):
     # 1. Unauthenticated -> 401
     r_unauth = client.get("/api/health/llm")
     assert r_unauth.status_code == 401
 
     # 2. Customer user (non-admin) -> 403
-    cust_token = create_access_token({"sub": "99", "role": "customer"})
+    cust_token = create_access_token({"sub": "9999", "role": "customer"})
     r_cust = client.get("/api/health/llm", headers={"Authorization": f"Bearer {cust_token}"})
-    assert r_cust.status_code == 401 or r_cust.status_code == 403
+    assert r_cust.status_code in (401, 403)
 
     # 3. Admin user -> 200 with provider, model, latency_ms
-    admin_token = create_access_token({"sub": "1", "role": "admin"})
-    r_admin = client.get("/api/health/llm", headers={"Authorization": f"Bearer {admin_token}"})
+    r_admin = client.get("/api/health/llm", headers=admin_auth_headers)
     assert r_admin.status_code == 200
     data = r_admin.json()
     assert data["status"] in ("healthy", "unhealthy")

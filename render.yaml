@@ -1,0 +1,35 @@
+version: "1"
+services:
+  - type: web
+    name: trovi
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    plan: starter
+    autoDeploy: true
+    disk:
+      name: trovi-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: PORT
+        value: 8000
+      - key: SHOPI_DB_PATH
+        value: /data/shopai.db
+      - key: POLICY_PATH
+        value: /app/config/policies.yaml
+      - key: AGENT_PROMPT_PATH
+        value: /app/prompts/agent_system.md
+      - key: ALEMBIC_CONFIG_PATH
+        value: /app/alembic.ini
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
