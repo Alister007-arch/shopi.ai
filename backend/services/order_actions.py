@@ -15,7 +15,12 @@ from typing import Dict, Any, List, Optional, Tuple
 from fastapi import HTTPException
 
 # Policy file location
-POLICY_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "config", "policies.yaml")
+POLICY_PATH = (
+    os.environ.get("POLICY_PATH")
+    or os.environ.get("MOSS_POLICY_PATH")
+    or os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "config", "policies.yaml")
+)
+
 DB_PATH = os.environ.get("SHOPI_DB_PATH", os.path.join(os.path.dirname(os.path.dirname(__file__)), "shopai.db"))
 
 def get_db_connection() -> sqlite3.Connection:

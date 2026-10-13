@@ -19,8 +19,15 @@ ENV PYTHONUNBUFFERED=1 \
 COPY backend/requirements.txt ./backend/
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
-# Copy backend code and database
+# Copy backend application code
 COPY backend/ ./backend/
+
+# Copy runtime configurations, business policies, agent prompts, templates, and migrations
+COPY config/ ./config/
+COPY prompts/ ./prompts/
+COPY templates/ ./templates/
+COPY alembic.ini ./alembic.ini
+COPY alembic.ini ./backend/alembic.ini
 
 # Copy built frontend assets and public directory for product images
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
@@ -30,3 +37,4 @@ WORKDIR /app/backend
 EXPOSE 8000
 
 CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+

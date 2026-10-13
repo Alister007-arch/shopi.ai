@@ -17,8 +17,13 @@ COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy application source
+# Copy application source and runtime assets
 COPY backend/ /app/backend/
+COPY config/ /app/config/
+COPY prompts/ /app/prompts/
+COPY templates/ /app/templates/
+COPY alembic.ini /app/alembic.ini
+
 
 # Default port
 ENV PORT=8000

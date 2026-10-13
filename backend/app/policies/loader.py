@@ -11,9 +11,13 @@ from typing import Dict, Any, List, Optional, Tuple
 from pydantic import BaseModel, Field, ValidationError
 
 
-DEFAULT_POLICY_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "config", "policies.yaml")
+DEFAULT_POLICY_PATH = os.environ.get("POLICY_PATH") or os.environ.get(
+    "MOSS_POLICY_PATH",
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "..", "config", "policies.yaml")
+    ),
 )
+
 
 
 class CustomerPolicyText(BaseModel):
@@ -382,12 +386,34 @@ def load_store_policies(policy_path: Optional[str] = None) -> StorePolicyConfig:
     Fails immediately with RuntimeError if YAML is missing, malformed, or fails schema validation.
     """
     global _CACHED_CONFIG
-    target_path = policy_path or os.environ.get("MOSS_POLICY_PATH", DEFAULT_POLICY_PATH)
+    explicit_specified = policy_path or os.environ.get("POLICY_PATH") or os.environ.get("MOSS_POLICY_PATH")
+    if explicit_specified:
+        target_path = explicit_specified
+        if not os.path.exists(target_path):
+            raise RuntimeError(
+                f"FATAL: Store policies configuration file not found at '{target_path}'. Application cannot start."
+            )
+    else:
+        target_path = DEFAULT_POLICY_PATH
+        if not os.path.exists(target_path):
+            candidates = [
+                "/app/config/policies.yaml",
+                os.path.abspath(os.path.join(os.getcwd(), "config", "policies.yaml")),
+                os.path.abspath(os.path.join(os.getcwd(), "..", "config", "policies.yaml")),
+                os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "config", "policies.yaml")),
+            ]
+            found = False
+            for cand in candidates:
+                if os.path.exists(cand):
+                    target_path = cand
+                    found = True
+                    break
+            if not found:
+                raise RuntimeError(
+                    f"FATAL: Store policies configuration file not found at '{target_path}'. Application cannot start."
+                )
 
-    if not os.path.exists(target_path):
-        raise RuntimeError(
-            f"FATAL: Store policies configuration file not found at '{target_path}'. Application cannot start."
-        )
+
 
     try:
         with open(target_path, "r", encoding="utf-8") as f:

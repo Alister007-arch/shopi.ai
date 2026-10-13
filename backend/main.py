@@ -53,8 +53,13 @@ from backend.app.orders import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s")
 logger = logging.getLogger("trovi.api")
 
+# Execute startup self-check: verify all required runtime files and configurations
+from backend.app.startup_check import run_startup_self_check
+run_startup_self_check(exit_on_failure=True)
+
 # Auto-seed database if missing
 DB_PATH = os.path.join(os.path.dirname(__file__), "shopai.db")
+
 if not os.path.exists(DB_PATH):
     try:
         import setup_db
@@ -93,8 +98,11 @@ app.include_router(order_actions_router)
 
 @app.on_event("startup")
 def on_app_startup():
+    # Enforce runtime prerequisite self-check on startup
+    run_startup_self_check(exit_on_failure=True)
     # Fail fast on missing required environment variables (names only, never values)
     settings.validate_environment()
+
 
     # Log port and registered auth routes at startup
     logger.info(f"[Server Startup] Listening on port: {settings.PORT} (environment: {settings.ENVIRONMENT})")
@@ -1473,6 +1481,12 @@ if os.path.exists(FRONTEND_DIST):
 
 
 if __name__ == "__main__":
+    if "--check" in sys.argv:
+        passed = run_startup_self_check(exit_on_failure=True)
+        if passed:
+            print("[Startup Self-Check] ALL RUNTIME PREREQUISITES VERIFIED SUCCESSFULLY.")
+            sys.exit(0)
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
+

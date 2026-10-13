@@ -29,14 +29,30 @@ logger = logging.getLogger("trovi.graph")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 
-PROMPT_PATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "prompts", "agent_system.md")
+PROMPT_PATH = (
+    os.environ.get("AGENT_PROMPT_PATH")
+    or os.environ.get("PROMPT_PATH")
+    or os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "prompts", "agent_system.md")
+    )
 )
 
 def load_system_prompt() -> str:
-    if os.path.exists(PROMPT_PATH):
+    path = PROMPT_PATH
+    if not os.path.exists(path):
+        candidates = [
+            "/app/prompts/agent_system.md",
+            os.path.abspath(os.path.join(os.getcwd(), "prompts", "agent_system.md")),
+            os.path.abspath(os.path.join(os.getcwd(), "..", "prompts", "agent_system.md")),
+        ]
+        for cand in candidates:
+            if os.path.exists(cand):
+                path = cand
+                break
+
+    if os.path.exists(path):
         try:
-            with open(PROMPT_PATH, "r", encoding="utf-8") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 return f.read().strip()
         except Exception:
             pass
@@ -1019,6 +1035,8 @@ def run_agent_chat(
         "order", "buy", "purchase", "kharid", "kar do", "kardo", "mangwa", "checkout"
     ])
 
+    is_order_placement = (not is_informational) and (has_order_intent or has_auto_confirm_cmd)
+
     is_track_intent = any(
         msg_lower == tk or msg_lower.startswith(tk + " ") or f" {tk}" in msg_lower
         for tk in [
@@ -1026,6 +1044,7 @@ def run_agent_chat(
             "track order", "track my order", "mera order", "order track", "track my active orders", "track package"
         ]
     )
+
 
     # Intercept cancellation, returns, exchanges, refunds, confirmation, tracking, or explicit order placement
     if (

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Order Confirmation - Trovi</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 24px; }
+    .card { max-width: 580px; margin: 0 auto; background-color: #1e293b; border-radius: 12px; border: 1px solid #334155; padding: 32px; }
+    .brand { font-size: 24px; font-weight: 700; color: #10b981; margin-bottom: 8px; }
+    .header { font-size: 20px; font-weight: 600; margin-bottom: 16px; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 6px; background-color: rgba(16, 185, 129, 0.2); color: #34d399; font-size: 13px; font-weight: 600; }
+    .detail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #334155; font-size: 14px; }
+    .footer { margin-top: 24px; font-size: 12px; color: #94a3b8; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">Trovi</div>
+    <div class="badge">Order Confirmed</div>
+    <h2 class="header">Thank you for your order, {{customer_name}}!</h2>
+    <p>Your order <strong>#{{order_number}}</strong> has been received and is being prepared.</p>
+    <div class="detail-row">
+      <span>Order Number:</span>
+      <strong>{{order_number}}</strong>
+    </div>
+    <div class="detail-row">
+      <span>Total Amount:</span>
+      <strong>₹{{total_amount}}</strong>
+    </div>
+    <div class="detail-row">
+      <span>Delivery Address:</span>
+      <span>{{delivery_address}}</span>
+    </div>
+    <div class="footer">
+      Trovi Multi-Category Autonomous E-Commerce. Need help? Contact support@trovi.store
+    </div>
+  </div>
+</body>
+</html>
