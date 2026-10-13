@@ -22,7 +22,9 @@ COPY backend/ /app/backend/
 COPY config/ /app/config/
 COPY prompts/ /app/prompts/
 COPY templates/ /app/templates/
+COPY scripts/ /app/scripts/
 COPY alembic.ini /app/alembic.ini
+
 
 
 # Default port

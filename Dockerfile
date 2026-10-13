@@ -22,12 +22,14 @@ RUN pip install --no-cache-dir -r backend/requirements.txt
 # Copy backend application code
 COPY backend/ ./backend/
 
-# Copy runtime configurations, business policies, agent prompts, templates, and migrations
+# Copy runtime configurations, business policies, agent prompts, templates, scripts, and migrations
 COPY config/ ./config/
 COPY prompts/ ./prompts/
 COPY templates/ ./templates/
+COPY scripts/ ./scripts/
 COPY alembic.ini ./alembic.ini
 COPY alembic.ini ./backend/alembic.ini
+
 
 # Copy built frontend assets and public directory for product images
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist

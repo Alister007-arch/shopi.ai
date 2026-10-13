@@ -65,9 +65,16 @@ You must configure persistent storage using either **Option A** (Render Disk + S
 
 ## 3. Environment Variables Reference
 
-Configure the following variables in the **Environment** tab of your Render Web Service.
+### How to Configure Environment Variables in the Render Dashboard:
+1. Log into your [Render Dashboard](https://dashboard.render.com).
+2. Select your Trovi Web Service.
+3. In the left navigation menu, click **Environment**.
+4. Click **Add Environment Variable** for individual keys, or use **Add from .env** to paste multiple keys.
+5. Enter the **Key** (variable name) and **Value**.
+6. Click **Save Changes** (Render will automatically redeploy the service with the new environment).
 
 ### Required Variables
+
 
 | Variable Name | Example Value | Description |
 |---|---|---|
