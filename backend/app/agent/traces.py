@@ -40,6 +40,8 @@ def init_traces_table(conn: sqlite3.Connection):
         cursor.execute("ALTER TABLE agent_traces ADD COLUMN provider_name TEXT DEFAULT ''")
     if "error_type" not in existing_cols:
         cursor.execute("ALTER TABLE agent_traces ADD COLUMN error_type TEXT DEFAULT ''")
+    if "metadata" not in existing_cols:
+        cursor.execute("ALTER TABLE agent_traces ADD COLUMN metadata TEXT DEFAULT '{}'")
     conn.commit()
 
 
@@ -54,6 +56,7 @@ def record_agent_trace(
     status: str = "success",
     provider_name: str = "",
     error_type: str = "",
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> int:
     """
     Saves an execution trace of an agent interaction into SQLite database.
@@ -64,12 +67,13 @@ def record_agent_trace(
         init_traces_table(conn)
         cursor = conn.cursor()
         tools_str = json.dumps(tool_calls or [])
+        meta_str = json.dumps(metadata or {})
         cursor.execute("""
             INSERT INTO agent_traces (
                 thread_id, user_message, agent_reply, tool_calls,
                 latency_ms, total_tokens, model_name, status,
-                provider_name, error_type
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                provider_name, error_type, metadata
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             thread_id or "default_session",
             user_message,
@@ -81,12 +85,89 @@ def record_agent_trace(
             status,
             provider_name,
             error_type,
+            meta_str,
         ))
         conn.commit()
         return cursor.lastrowid
     except Exception as e:
         print(f"[Trace Error] Failed to record trace: {e}")
         return 0
+    finally:
+        conn.close()
+
+
+def get_thread_chat_history(thread_ids: List[str], limit: int = 100) -> List[Dict[str, Any]]:
+    """
+    Returns the chronological chat history for given thread IDs.
+    """
+    if not thread_ids:
+        return []
+    conn = tools.get_db_connection()
+    try:
+        init_traces_table(conn)
+        cursor = conn.cursor()
+        placeholders = ",".join(["?"] * len(thread_ids))
+        cursor.execute(f"""
+            SELECT id, thread_id, user_message, agent_reply, tool_calls, metadata, created_at
+            FROM agent_traces
+            WHERE thread_id IN ({placeholders})
+            ORDER BY id ASC
+            LIMIT ?
+        """, (*thread_ids, limit))
+        rows = cursor.fetchall()
+        history = []
+        for r in rows:
+            meta = {}
+            if "metadata" in r.keys() and r["metadata"]:
+                try:
+                    meta = json.loads(r["metadata"])
+                except Exception:
+                    meta = {}
+            created_ts = r["created_at"]
+            if r["user_message"]:
+                history.append({
+                    "id": f"u_{r['id']}",
+                    "role": "user",
+                    "text": r["user_message"],
+                    "timestamp": created_ts,
+                })
+            if r["agent_reply"]:
+                history.append({
+                    "id": f"a_{r['id']}",
+                    "role": "assistant",
+                    "text": r["agent_reply"],
+                    "product_cards": meta.get("product_cards", []),
+                    "placed_order": meta.get("placed_order"),
+                    "cart_action": meta.get("cart_action"),
+                    "order_bundle": meta.get("order_bundle"),
+                    "action_card": meta.get("action_card"),
+                    "return_action": meta.get("return_action"),
+                    "exchange_action": meta.get("exchange_action"),
+                    "refund_action": meta.get("refund_action"),
+                    "timestamp": created_ts,
+                })
+        return history
+    finally:
+        conn.close()
+
+
+def clear_thread_chat_history(thread_ids: List[str]) -> int:
+    """
+    Deletes conversation history for given thread IDs.
+    """
+    if not thread_ids:
+        return 0
+    conn = tools.get_db_connection()
+    try:
+        init_traces_table(conn)
+        cursor = conn.cursor()
+        placeholders = ",".join(["?"] * len(thread_ids))
+        cursor.execute(f"""
+            DELETE FROM agent_traces
+            WHERE thread_id IN ({placeholders})
+        """, (*thread_ids,))
+        conn.commit()
+        return cursor.rowcount
     finally:
         conn.close()
 

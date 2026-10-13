@@ -39,7 +39,11 @@ const DealCountdown = React.memo(function DealCountdown() {
 export default function Catalog({
   onAddToCart,
   onAskInChat,
-  formatPrice = (p, inr) => inr ? `₹${inr.toLocaleString('en-IN')}` : `$${p.toFixed(2)}`,
+  formatPrice = (p, inr) => {
+    if (inr !== undefined && inr !== null && !isNaN(Number(inr))) return `₹${Math.round(Number(inr)).toLocaleString('en-IN')}`;
+    const n = Number(p);
+    return !isNaN(n) && p !== undefined && p !== null ? `₹${Math.round(n * 85).toLocaleString('en-IN')}` : '₹0';
+  },
   currency = 'INR',
   searchQuery = '',
   selectedCategory = 'all',
@@ -177,7 +181,7 @@ export default function Catalog({
       if (organicOnly && !p.is_organic) return false;
       if (inStockOnly && p.stock <= 0) return false;
 
-      const inr = p.price_inr || Math.round(p.price * 85);
+      const inr = p.price_inr || Math.round((Number(p.price) || 0) * 85);
       if (under500Only && inr > 500) return false;
 
       // Price range filter
@@ -209,24 +213,28 @@ export default function Catalog({
       // Search query filtering
       if (catalogSearch && catalogSearch.trim()) {
         const localQ = catalogSearch.toLowerCase().trim();
+        const pName = (p.name || '').toLowerCase();
+        const pDesc = (p.description || '').toLowerCase();
+        const pBrand = (p.brand || '').toLowerCase();
+        const pSpecs = (p.specifications || '').toLowerCase();
         const match = (
-          p.name.toLowerCase().includes(localQ) ||
-          (p.description && p.description.toLowerCase().includes(localQ)) ||
-          (p.brand && p.brand.toLowerCase().includes(localQ)) ||
+          pName.includes(localQ) ||
+          pDesc.includes(localQ) ||
+          pBrand.includes(localQ) ||
           pCat.includes(localQ) ||
-          (p.specifications && p.specifications.toLowerCase().includes(localQ))
+          pSpecs.includes(localQ)
         );
         if (!match) return false;
       }
       return true;
     }).sort((a, b) => {
-      const aInr = a.price_inr || Math.round(a.price * 85);
-      const bInr = b.price_inr || Math.round(b.price * 85);
+      const aInr = a.price_inr || Math.round((Number(a.price) || 0) * 85);
+      const bInr = b.price_inr || Math.round((Number(b.price) || 0) * 85);
       if (catalogSort === 'price_asc') return aInr - bInr;
       if (catalogSort === 'price_desc') return bInr - aInr;
       if (catalogSort === 'rating') return (b.rating || 4.5) - (a.rating || 4.5);
-      if (catalogSort === 'name_asc') return a.name.localeCompare(b.name);
-      return a.id - b.id; // 'featured'
+      if (catalogSort === 'name_asc') return (a.name || '').localeCompare(b.name || '');
+      return (a.id || 0) - (b.id || 0); // 'featured'
     });
   }, [
     products, selectedCategory, organicOnly, inStockOnly, under500Only,

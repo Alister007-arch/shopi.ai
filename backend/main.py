@@ -396,8 +396,11 @@ def chat_endpoint(
 
     # Derive unique per-session/per-user thread ID
     if current_user:
-        sub_id = req.thread_id.strip() if req.thread_id and req.thread_id.strip() not in ("session-web", "default_session", "") else "main"
-        session_thread_id = f"user_{current_user.id}_{sub_id}"
+        if req.thread_id and req.thread_id.strip().startswith(f"user_{current_user.id}_"):
+            session_thread_id = req.thread_id.strip()
+        else:
+            sub_id = req.thread_id.strip() if req.thread_id and req.thread_id.strip() not in ("session-web", "default_session", "") else "session"
+            session_thread_id = f"user_{current_user.id}_{sub_id}"
         cust_name = current_user.full_name
         cust_email = current_user.email
         user_id_val = current_user.id
@@ -490,6 +493,16 @@ def chat_endpoint(
     latency_ms = int((time.time() - t0) * 1000)
     reply_text = result.get("response") or result.get("reply") or ""
     tool_calls = result.get("tool_calls") or []
+    meta = {
+        "product_cards": result.get("product_cards") or [],
+        "placed_order": result.get("placed_order"),
+        "cart_action": result.get("cart_action"),
+        "order_bundle": result.get("order_bundle"),
+        "action_card": result.get("action_card"),
+        "return_action": result.get("return_action"),
+        "exchange_action": result.get("exchange_action"),
+        "refund_action": result.get("refund_action"),
+    }
     record_agent_trace(
         thread_id=session_thread_id,
         user_message=req.message.strip(),
@@ -500,8 +513,53 @@ def chat_endpoint(
         status=status,
         provider_name=provider_name,
         error_type=error_type,
+        metadata=meta,
     )
     return result
+
+
+@app.get("/api/chat/history")
+def get_chat_history_endpoint(
+    thread_id: Optional[str] = Query(None),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+):
+    """
+    Returns historical chat conversation messages for current user or guest thread from SQLite.
+    """
+    from backend.app.agent.traces import get_thread_chat_history
+    target_threads = []
+    if current_user:
+        target_threads.append(f"user_{current_user.id}_session")
+        target_threads.append(f"user_{current_user.id}_main")
+        if thread_id and thread_id.strip() and thread_id.strip() not in target_threads:
+            target_threads.append(thread_id.strip())
+    elif thread_id and thread_id.strip():
+        target_threads.append(thread_id.strip())
+
+    messages = get_thread_chat_history(target_threads, limit=100)
+    return {"messages": messages, "count": len(messages)}
+
+
+@app.delete("/api/chat/history")
+def clear_chat_history_endpoint(
+    thread_id: Optional[str] = Query(None),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+):
+    """
+    Clears historical chat messages for current user or guest thread.
+    """
+    from backend.app.agent.traces import clear_thread_chat_history
+    target_threads = []
+    if current_user:
+        target_threads.append(f"user_{current_user.id}_session")
+        target_threads.append(f"user_{current_user.id}_main")
+        if thread_id and thread_id.strip() and thread_id.strip() not in target_threads:
+            target_threads.append(thread_id.strip())
+    elif thread_id and thread_id.strip():
+        target_threads.append(thread_id.strip())
+
+    deleted_count = clear_thread_chat_history(target_threads)
+    return {"status": "success", "deleted_count": deleted_count}
 
 
 @app.get("/api/health/llm", dependencies=[Depends(get_current_admin)])
@@ -1145,13 +1203,8 @@ def get_orders(
     ord_list = [o.strip() for o in order_numbers.split(",") if o.strip()] if order_numbers else []
 
     if current_user.role != "admin":
-        if ord_list:
-            placeholders = ",".join(["?"] * len(ord_list))
-            query += f" AND (o.user_id = ? OR LOWER(o.customer_email) = LOWER(?)) AND o.order_number IN ({placeholders})"
-            params.extend([current_user.id, current_user.email.strip(), *ord_list])
-        else:
-            query += " AND (o.user_id = ? OR LOWER(o.customer_email) = LOWER(?))"
-            params.extend([current_user.id, current_user.email.strip()])
+        query += " AND (o.user_id = ? OR LOWER(o.customer_email) = LOWER(?))"
+        params.extend([current_user.id, current_user.email.strip()])
     else:
         if ord_list:
             placeholders = ",".join(["?"] * len(ord_list))
@@ -1222,6 +1275,22 @@ def get_single_order(
     order_dict["items"] = [dict(it) for it in items_rows]
     conn.close()
     return order_dict
+
+
+@app.get("/api/orders/{order_identifier}/track")
+def track_order_endpoint(
+    order_identifier: str,
+    current_user: Optional[User] = Depends(get_optional_current_user),
+):
+    """
+    Public and authenticated order tracking endpoint.
+    Returns status, live shipment stepper, items summary, and masked delivery details.
+    """
+    raw_res = tools.track_order.invoke({"order_identifier": order_identifier})
+    data = json.loads(raw_res) if isinstance(raw_res, str) else raw_res
+    if data.get("status") == "not_found":
+        raise HTTPException(status_code=404, detail=data.get("message", f"Order '{order_identifier}' not found."))
+    return data
 
 
 @app.get("/api/orders/{order_number}/invoice")

@@ -73,7 +73,11 @@ export default function CartOrdersDrawer({
   onClearCart,
   initialTab = 'cart',
   initialStep = 'bag',
-  formatPrice = (p, inr) => (inr ? `₹${inr.toLocaleString('en-IN')}` : `$${p.toFixed(2)}`),
+  formatPrice = (p, inr) => {
+    if (inr !== undefined && inr !== null && !isNaN(Number(inr))) return `₹${Math.round(Number(inr)).toLocaleString('en-IN')}`;
+    const n = Number(p);
+    return !isNaN(n) && p !== undefined && p !== null ? `₹${Math.round(n * 85).toLocaleString('en-IN')}` : '₹0';
+  },
   currency = 'INR',
   currentUser = null,
   onOpenAuthModal = null,
@@ -179,24 +183,73 @@ export default function CartOrdersDrawer({
 
   const fetchOrders = async () => {
     try {
-      const email = currentUser?.email || customerEmail || '';
-      if (!email) {
-        setOrders([]);
-        return;
-      }
+      const email = currentUser?.email || customerEmail || localStorage.getItem('moss_customer_email') || '';
+      const token = localStorage.getItem('moss_auth_token');
+
       let orderParam = '';
+      let storedList = [];
       try {
-        const storedList = JSON.parse(localStorage.getItem('moss_agent_orders') || '[]');
+        storedList = JSON.parse(localStorage.getItem('moss_agent_orders') || '[]');
         if (storedList.length > 0) {
-          orderParam = `&order_numbers=${encodeURIComponent(storedList.join(','))}`;
+          orderParam = `order_numbers=${encodeURIComponent(storedList.join(','))}`;
         }
       } catch (e) {}
 
-      const res = await fetch(`${API_BASE}/api/orders?customer_email=${encodeURIComponent(email)}${orderParam}`);
-      if (res.ok) {
-        const data = await res.json();
-        setOrders(data.orders || []);
+      // 1. If user is authenticated, query /api/orders with Bearer JWT
+      if (token) {
+        const queryParts = [];
+        if (email) queryParts.push(`customer_email=${encodeURIComponent(email)}`);
+        if (orderParam) queryParts.push(orderParam);
+        const url = `${API_BASE}/api/orders${queryParts.length > 0 ? `?${queryParts.join('&')}` : ''}`;
+
+        const res = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setOrders(data.orders || []);
+          return;
+        }
       }
+
+      // 2. If not authenticated or /api/orders returned error, fall back to tracking stored orders
+      if (storedList.length > 0) {
+        const trackedOrders = await Promise.all(
+          storedList.slice(0, 15).map(async (ordNo) => {
+            try {
+              const res = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(ordNo)}/track`);
+              if (res.ok) {
+                const data = await res.json();
+                return {
+                  id: data.id || ordNo,
+                  order_number: data.order_number || ordNo,
+                  status: data.current_status || data.order_status || 'Placed',
+                  ordered_at: data.ordered_at || 'Recently',
+                  items_summary: data.items_summary || 'Catalog items',
+                  items: data.items || [],
+                  total_price_inr: data.total_price_inr || 0,
+                  total_price: data.total_price || 0,
+                  customer_address: data.delivery_address_masked || data.customer_address || 'Saved Address',
+                  payment_method: data.payment_method || 'Verified Pay',
+                };
+              }
+            } catch (err) {
+              console.warn(`Could not track ${ordNo}:`, err);
+            }
+            return null;
+          })
+        );
+        const validTracked = trackedOrders.filter(Boolean);
+        if (validTracked.length > 0) {
+          setOrders(validTracked);
+          return;
+        }
+      }
+
+      setOrders([]);
     } catch (err) {
       console.warn('Could not load orders:', err);
     }
@@ -243,10 +296,12 @@ export default function CartOrdersDrawer({
   };
 
   // Calculations
-  const cartTotalUsd = cartItems.reduce((acc, it) => acc + it.price * it.quantity, 0);
+  const cartTotalUsd = cartItems.reduce((acc, it) => acc + (Number(it.price) || 0) * (Number(it.quantity) || 1), 0);
   const cartTotalInr = cartItems.reduce((acc, it) => {
-    const itemInr = it.price_inr || Math.round(it.price * 85);
-    return acc + itemInr * it.quantity;
+    const itemInr = (it.price_inr !== undefined && it.price_inr !== null && !isNaN(Number(it.price_inr)))
+      ? Number(it.price_inr)
+      : Math.round((Number(it.price) || 0) * 85);
+    return acc + itemInr * (Number(it.quantity) || 1);
   }, 0);
 
   // Genuine Delivery Tiers & Serviceability
@@ -386,9 +441,13 @@ export default function CartOrdersDrawer({
     setCancellingOrderNo(orderNumber);
     setCancelMessage(null);
     try {
+      const token = localStorage.getItem('moss_auth_token');
       const res = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(orderNumber)}/cancel`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
       });
       const data = await res.json();
       if (!res.ok) {
@@ -396,6 +455,7 @@ export default function CartOrdersDrawer({
       }
       setCancelMessage(`✓ Order ${orderNumber} cancelled successfully. Reserved inventory has been restored.`);
       await fetchOrders();
+      window.dispatchEvent(new CustomEvent('moss_order_placed', { detail: data }));
     } catch (err) {
       alert(`Cancellation failed: ${err.message}`);
     } finally {
@@ -512,9 +572,23 @@ export default function CartOrdersDrawer({
         colors: ['#1c3024', '#8fa892', '#c86d51', '#f7f6f2'],
       });
 
+      // Save order number to localStorage for persistent tracking across tabs & sessions
+      if (orderData.order_number) {
+        try {
+          const existing = JSON.parse(localStorage.getItem('moss_agent_orders') || '[]');
+          if (!existing.includes(orderData.order_number)) {
+            existing.unshift(orderData.order_number);
+            localStorage.setItem('moss_agent_orders', JSON.stringify(existing.slice(0, 50)));
+          }
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+
       setLastPlacedOrder(orderData);
       onClearCart();
       await fetchOrders();
+      window.dispatchEvent(new CustomEvent('moss_order_placed', { detail: orderData }));
       setActiveTab('orders');
       setCheckoutStep('bag');
     } catch (err) {
@@ -951,7 +1025,7 @@ export default function CartOrdersDrawer({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 6 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
                     <span>Items Subtotal</span>
-                    <span>₹{cartTotalInr.toLocaleString('en-IN')} (${cartTotalUsd.toFixed(2)})</span>
+                    <span>₹{(cartTotalInr || 0).toLocaleString('en-IN')} (${(Number(cartTotalUsd) || 0).toFixed(2)})</span>
                   </div>
                   {discountInr > 0 && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem', color: 'var(--moss-forest)', fontWeight: 600 }}>

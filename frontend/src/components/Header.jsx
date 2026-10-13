@@ -589,10 +589,10 @@ export default function Header({
                   borderRadius: 'var(--radius-full)',
                   transition: 'all 0.2s',
                 }}
-                title={`Signed in as ${currentUser.email}`}
+                title={`Signed in as ${currentUser?.email || 'Customer'}`}
               >
                 <User size={13} color={activeTab === 'profile' ? '#ffffff' : 'var(--moss-deep)'} />
-                <span>{currentUser.full_name || currentUser.email.split('@')[0]}</span>
+                <span>{currentUser?.full_name || (currentUser?.email ? currentUser.email.split('@')[0] : 'Shopper')}</span>
               </button>
               <button
                 id="header-orders-menu-btn"

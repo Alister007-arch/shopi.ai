@@ -172,22 +172,59 @@ export default function CustomerProfile({
   const [actionSubmitting, setActionSubmitting] = useState(false);
 
   const fetchOrders = async () => {
-    const email = profileForm.email || currentUser?.email;
-    if (!email) return;
+    const email = profileForm.email || currentUser?.email || localStorage.getItem('moss_customer_email') || '';
+    const token = localStorage.getItem('moss_auth_token');
+    if (!email && !token) return;
     setOrdersLoading(true);
     try {
-      let orderParam = '';
-      try {
-        const storedList = JSON.parse(localStorage.getItem('moss_agent_orders') || '[]');
-        if (storedList.length > 0) {
-          orderParam = `&order_numbers=${encodeURIComponent(storedList.join(','))}`;
+      if (token) {
+        const queryUrl = email ? `${API_BASE}/api/orders?customer_email=${encodeURIComponent(email)}` : `${API_BASE}/api/orders`;
+        const res = await fetch(queryUrl, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setOrders(data.orders || []);
+          return;
         }
-      } catch (e) {}
+      }
 
-      const res = await fetch(`${API_BASE}/api/orders?customer_email=${encodeURIComponent(email)}${orderParam}`);
-      if (res.ok) {
-        const data = await res.json();
-        setOrders(data.orders || []);
+      // Fallback: tracked orders from browser session if not logged in
+      const storedList = JSON.parse(localStorage.getItem('moss_agent_orders') || '[]');
+      if (storedList.length > 0) {
+        const trackedOrders = await Promise.all(
+          storedList.slice(0, 15).map(async (ordNo) => {
+            try {
+              const res = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(ordNo)}/track`);
+              if (res.ok) {
+                const data = await res.json();
+                return {
+                  id: data.id || ordNo,
+                  order_number: data.order_number || ordNo,
+                  status: data.current_status || data.order_status || 'Placed',
+                  ordered_at: data.ordered_at || 'Recently',
+                  items_summary: data.items_summary || 'Catalog items',
+                  items: data.items || [],
+                  total_price_inr: data.total_price_inr || 0,
+                  total_price: data.total_price || 0,
+                  customer_address: data.delivery_address_masked || data.customer_address || 'Saved Address',
+                  payment_method: data.payment_method || 'Verified Pay',
+                };
+              }
+            } catch (err) {
+              console.warn(`Could not track ${ordNo}:`, err);
+            }
+            return null;
+          })
+        );
+        const validTracked = trackedOrders.filter(Boolean);
+        if (validTracked.length > 0) {
+          setOrders(validTracked);
+          return;
+        }
       }
     } catch (err) {
       console.error('Error fetching orders:', err);
@@ -221,9 +258,13 @@ export default function CustomerProfile({
         reason: reason || `Customer requested ${type}`,
         ...(type === 'exchange' ? { replacement_item: replacementItem || 'Standard replacement variant' } : {})
       };
+      const token = localStorage.getItem('moss_auth_token');
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(payload)
       });
       const data = await res.json();
@@ -247,9 +288,13 @@ export default function CustomerProfile({
     }
     setCancellingOrderNo(orderNumber);
     try {
+      const token = localStorage.getItem('moss_auth_token');
       const res = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(orderNumber)}/cancel`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ reason: 'Customer requested cancellation via Profile tab' }),
       });
       const data = await res.json();
@@ -1191,10 +1236,10 @@ export default function CustomerProfile({
 
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--moss-deep)' }}>
-                          ₹{(ord.total_price_inr || ord.total_price)?.toLocaleString('en-IN')}
+                          ₹{Number(ord.total_price_inr || (ord.total_price ? ord.total_price * 85 : 0)).toLocaleString('en-IN')}
                         </div>
                         <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                          (${ord.total_price?.toFixed(2) || '0.00'})
+                          (${Number(ord.total_price || 0).toFixed(2)})
                         </span>
                       </div>
                     </div>
@@ -1374,7 +1419,7 @@ export default function CustomerProfile({
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
                   {actionModal.type === 'return' && 'Our delivery partner will arrive for reverse doorstep pickup. Refund will be credited upon pickup.'}
                   {actionModal.type === 'exchange' && 'A replacement shipment will be dispatched to your delivery address immediately.'}
-                  {actionModal.type === 'refund' && 'Instant credit of ₹' + (actionModal.order.total_price_inr || actionModal.order.total_price)?.toLocaleString('en-IN') + ' will be processed to your source payment method.'}
+                  {actionModal.type === 'refund' && `Instant credit of ₹${Number(actionModal.order?.total_price_inr || (actionModal.order?.total_price ? actionModal.order.total_price * 85 : 0)).toLocaleString('en-IN')} will be processed to your source payment method.`}
                 </p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

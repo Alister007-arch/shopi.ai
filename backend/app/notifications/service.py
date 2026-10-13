@@ -79,13 +79,13 @@ class EmailProvider(BaseNotificationProvider):
         smtp_host = settings.SMTP_HOST
         masked = mask_identifier(recipient, "email")
 
-        # If SMTP is configured, attempt live delivery
-        if smtp_host:
+        # If SMTP is fully configured with credentials, attempt live delivery
+        if smtp_host and smtp_host.strip() and settings.SMTP_USER and settings.SMTP_USER.strip() and settings.SMTP_PASSWORD and settings.SMTP_PASSWORD.strip():
             try:
                 smtp_port = settings.SMTP_PORT or 587
-                smtp_user = settings.SMTP_USER
-                smtp_pass = settings.SMTP_PASSWORD
-                smtp_from = settings.SMTP_FROM or smtp_user or "security@trovi.store"
+                smtp_user = settings.SMTP_USER.strip() if settings.SMTP_USER else None
+                smtp_pass = settings.SMTP_PASSWORD.replace(" ", "").strip() if settings.SMTP_PASSWORD else None
+                smtp_from = (settings.SMTP_FROM.strip() if settings.SMTP_FROM else None) or smtp_user or "security@trovi.store"
 
                 msg = MIMEMultipart()
                 msg["From"] = smtp_from
@@ -111,6 +111,11 @@ class EmailProvider(BaseNotificationProvider):
             f"[Email Dispatch: SIMULATED] To: {masked} | Subject: '{subject}' | Event: {event_type}\n"
             f"--- Email Body Preview ---\n{content}\n---------------------------"
         )
+        print(
+            f"\n[DEV MODE OTP / NOTIFICATION]\nChannel: EMAIL | To: {recipient}\n{content}\n"
+            f"--------------------------------------------------\n",
+            flush=True
+        )
         return {"status": "simulated", "provider": "console_fallback"}
 
 
@@ -123,8 +128,8 @@ class SmsProvider(BaseNotificationProvider):
         token = settings.TWILIO_AUTH_TOKEN
         from_number = settings.TWILIO_FROM_NUMBER
 
-        # If Twilio is configured, attempt live delivery
-        if sid and token and from_number:
+        # If Twilio is configured with non-empty credentials, attempt live delivery
+        if sid and sid.strip() and token and token.strip() and from_number and from_number.strip():
             try:
                 url = f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
                 data = urllib.parse.urlencode({
@@ -153,6 +158,11 @@ class SmsProvider(BaseNotificationProvider):
             f"[SMS Dispatch: SIMULATED] To: {masked} | Event: {event_type}\n"
             f"--- SMS Body Preview ---\n{content}\n------------------------"
         )
+        print(
+            f"\n[DEV MODE OTP / NOTIFICATION]\nChannel: SMS | To: {e164_recipient}\n{content}\n"
+            f"--------------------------------------------------\n",
+            flush=True
+        )
         return {"status": "simulated", "provider": "console_fallback"}
 
 
@@ -165,8 +175,8 @@ class WhatsAppProvider(BaseNotificationProvider):
         token = settings.TWILIO_AUTH_TOKEN
         from_number = settings.TWILIO_WHATSAPP_FROM_NUMBER or settings.TWILIO_FROM_NUMBER
 
-        # If Twilio WhatsApp is configured, attempt live delivery
-        if sid and token and from_number:
+        # If Twilio WhatsApp is configured with non-empty credentials, attempt live delivery
+        if sid and sid.strip() and token and token.strip() and from_number and from_number.strip():
             try:
                 url = f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json"
                 wa_from = from_number if from_number.startswith("whatsapp:") else f"whatsapp:{from_number}"
@@ -197,6 +207,11 @@ class WhatsAppProvider(BaseNotificationProvider):
         logger.info(
             f"[WhatsApp Dispatch: SIMULATED] To: {masked} | Event: {event_type}\n"
             f"--- WhatsApp Body Preview ---\n{content}\n-----------------------------"
+        )
+        print(
+            f"\n[DEV MODE OTP / NOTIFICATION]\nChannel: WHATSAPP | To: {e164_recipient}\n{content}\n"
+            f"--------------------------------------------------\n",
+            flush=True
         )
         return {"status": "simulated", "provider": "console_fallback"}
 

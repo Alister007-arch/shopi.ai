@@ -13,7 +13,11 @@ export default function ProductDetailModal({
   onClose,
   onAddToCart,
   onAskInChat,
-  formatPrice = (p, inr) => inr ? `₹${inr.toLocaleString('en-IN')}` : `$${p.toFixed(2)}`,
+  formatPrice = (p, inr) => {
+    if (inr !== undefined && inr !== null && !isNaN(Number(inr))) return `₹${Math.round(Number(inr)).toLocaleString('en-IN')}`;
+    const n = Number(p);
+    return !isNaN(n) && p !== undefined && p !== null ? `₹${Math.round(n * 85).toLocaleString('en-IN')}` : '₹0';
+  },
   currency = 'INR',
   allProducts = [],
   currentUser = null,
@@ -35,13 +39,13 @@ export default function ProductDetailModal({
   const isHomeKitchen = ['home-kitchen', 'kitchen-appliances', 'cookware', 'household'].includes(pCat);
   const isPersonalCare = ['personal-care', 'haircare', 'skincare', 'grooming'].includes(pCat);
 
-  const inrPrice = product.price_inr || Math.round(product.price * 85);
-  const mrpPrice = Math.round(inrPrice * 1.25);
-  const discountPct = Math.round(((mrpPrice - inrPrice) / mrpPrice) * 100);
+  const inrPrice = product.price_inr || Math.round((Number(product.price) || 0) * 85);
+  const mrpPrice = Math.max(inrPrice, Math.round(inrPrice * 1.25));
+  const discountPct = mrpPrice > 0 ? Math.round(((mrpPrice - inrPrice) / mrpPrice) * 100) : 0;
 
   // Bundle suggestions (Frequently bought together)
-  const bundleItems = allProducts.filter((p) => p.id !== product.id).slice(0, 2);
-  const bundleTotalInr = inrPrice + bundleItems.reduce((acc, p) => acc + (p.price_inr || Math.round(p.price * 85)), 0);
+  const bundleItems = allProducts.filter((p) => p && p.id !== product.id).slice(0, 2);
+  const bundleTotalInr = inrPrice + bundleItems.reduce((acc, p) => acc + (p.price_inr || Math.round((Number(p.price) || 0) * 85)), 0);
 
   // You may also like items
   const relatedProducts = allProducts.filter((p) => p.id !== product.id && p.category === product.category).slice(0, 4);

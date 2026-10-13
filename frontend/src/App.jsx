@@ -206,8 +206,8 @@ export default function App() {
 
   // Currency Formatter
   const formatPrice = (usdAmount, inrAmount) => {
-    if (inrAmount) {
-      return `₹${inrAmount.toLocaleString('en-IN')}`;
+    if (inrAmount !== undefined && inrAmount !== null && !isNaN(Number(inrAmount))) {
+      return `₹${Math.round(Number(inrAmount)).toLocaleString('en-IN')}`;
     }
     const val = typeof usdAmount === 'number' ? usdAmount : parseFloat(usdAmount) || 0;
     if (currency === 'INR') {

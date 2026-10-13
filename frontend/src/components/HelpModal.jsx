@@ -86,12 +86,43 @@ export default function HelpModal({
     setActionSuccess(null);
 
     try {
-      const res = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(query)}`);
-      if (!res.ok) {
+      const token = localStorage.getItem('moss_auth_token');
+      let orderData = null;
+
+      // 1. Try authenticated order lookup first if user is logged in
+      if (token) {
+        try {
+          const res = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(query)}`, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+          });
+          if (res.ok) {
+            orderData = await res.json();
+          }
+        } catch (e) {
+          console.warn('Auth order lookup error:', e);
+        }
+      }
+
+      // 2. Fall back to live order tracking endpoint
+      if (!orderData) {
+        const trackRes = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(query)}/track`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+        });
+        if (trackRes.ok) {
+          orderData = await trackRes.json();
+        }
+      }
+
+      if (!orderData) {
         throw new Error(`Order #${query} not found. Please verify your order number.`);
       }
-      const data = await res.json();
-      setLookupResult(data);
+      setLookupResult(orderData);
     } catch (err) {
       setLookupError(err.message);
     } finally {
@@ -103,17 +134,26 @@ export default function HelpModal({
     if (!lookupResult) return;
     try {
       const ordNo = lookupResult.order_number || lookupResult.id;
+      const token = localStorage.getItem('moss_auth_token');
       const res = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(ordNo)}/${type}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ reason: `Requested via Help & Returns portal (${type})` })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || data.message || `Failed to process ${type}`);
       
       setActionSuccess(`✓ ${type.toUpperCase()} request placed successfully for #${ordNo}!`);
-      // Refresh lookup
-      const updatedRes = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(ordNo)}`);
+      // Refresh lookup with tracking
+      const updatedRes = await fetch(`${API_BASE}/api/orders/${encodeURIComponent(ordNo)}/track`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+      });
       if (updatedRes.ok) {
         setLookupResult(await updatedRes.json());
       }
@@ -387,7 +427,7 @@ export default function HelpModal({
                     </div>
 
                     <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                      Total: ₹{(lookupResult.total_price_inr || lookupResult.total_price)?.toLocaleString('en-IN')} • {lookupResult.customer_address || 'Registered Address'}
+                      Total: ₹{Number(lookupResult.total_price_inr || (lookupResult.total_price ? lookupResult.total_price * 85 : 0)).toLocaleString('en-IN')} • {lookupResult.customer_address || 'Registered Address'}
                     </div>
 
                     <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>

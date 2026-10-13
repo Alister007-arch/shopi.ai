@@ -26,7 +26,11 @@ export default function AIChat({
   onRemoveFromCart,
   onBuyNowDirect,
   onOpenOrders,
-  formatPrice = (p, inr) => inr ? `₹${inr.toLocaleString('en-IN')}` : `$${p.toFixed(2)}`,
+  formatPrice = (p, inr) => {
+    if (inr !== undefined && inr !== null && !isNaN(Number(inr))) return `₹${Math.round(Number(inr)).toLocaleString('en-IN')}`;
+    const n = Number(p);
+    return !isNaN(n) && p !== undefined && p !== null ? `₹${Math.round(n * 85).toLocaleString('en-IN')}` : '₹0';
+  },
   currency = 'INR',
   isWidgetMode = false,
   initialPrompt = null,
@@ -36,21 +40,6 @@ export default function AIChat({
   currentUser = null,
   onOpenAuthModal = null,
 }) {
-  const [messages, setMessages] = useState([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      text: BRAND.welcomeMessage,
-      product_cards: [],
-      placed_order: null,
-      cart_action: null,
-      order_bundle: null,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    },
-  ]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [lastFailedQuery, setLastFailedQuery] = useState(null);
   const [threadId] = useState(() => {
     try {
       const stored = localStorage.getItem('moss_guest_thread_id');
@@ -62,8 +51,117 @@ export default function AIChat({
       return 'guest_' + Math.random().toString(36).substring(2, 10);
     }
   });
+
+  const effectiveThreadId = currentUser?.id ? `user_${currentUser.id}_session` : threadId;
+  const storageKey = `moss_chat_history_${effectiveThreadId}`;
+
+  const defaultWelcomeMessage = {
+    id: 'welcome',
+    role: 'assistant',
+    text: BRAND.welcomeMessage,
+    product_cards: [],
+    placed_order: null,
+    cart_action: null,
+    order_bundle: null,
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  };
+
+  const [messages, setMessages] = useState(() => {
+    try {
+      const activeStorageKey = currentUser?.id
+        ? `moss_chat_history_user_${currentUser.id}_session`
+        : (localStorage.getItem('moss_guest_thread_id') ? `moss_chat_history_${localStorage.getItem('moss_guest_thread_id')}` : 'moss_chat_history_guest');
+      const saved = localStorage.getItem(activeStorageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load chat history from storage:', e);
+    }
+    return [defaultWelcomeMessage];
+  });
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [lastFailedQuery, setLastFailedQuery] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const messagesEndRef = useRef(null);
+
+  // Automatically persist messages to localStorage whenever messages array changes
+  useEffect(() => {
+    if (!messages || messages.length === 0) return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(messages));
+    } catch (e) {
+      console.warn('Failed to save chat history to localStorage:', e);
+    }
+  }, [messages, storageKey]);
+
+  // If user logs in, carry over guest conversation history so work is not lost
+  useEffect(() => {
+    if (currentUser?.id) {
+      const userKey = `moss_chat_history_user_${currentUser.id}_session`;
+      const existingUserHistory = localStorage.getItem(userKey);
+      if (!existingUserHistory) {
+        const guestKey = `moss_chat_history_${threadId}`;
+        const guestHistory = localStorage.getItem(guestKey);
+        if (guestHistory) {
+          try {
+            const parsed = JSON.parse(guestHistory);
+            if (Array.isArray(parsed) && parsed.length > 1) {
+              localStorage.setItem(userKey, guestHistory);
+              setMessages(parsed);
+              return;
+            }
+          } catch (e) {}
+        }
+      } else {
+        try {
+          const parsed = JSON.parse(existingUserHistory);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMessages(parsed);
+          }
+        } catch (e) {}
+      }
+    }
+  }, [currentUser?.id, threadId]);
+
+  // Sync historical messages from backend SQLite agent_traces
+  useEffect(() => {
+    let isCancelled = false;
+    const fetchRemoteHistory = async () => {
+      try {
+        const token = localStorage.getItem('moss_auth_token');
+        const url = `${API_BASE}/api/chat/history?thread_id=${encodeURIComponent(effectiveThreadId)}`;
+        const res = await fetch(url, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (!isCancelled && Array.isArray(data.messages) && data.messages.length > 0) {
+            setMessages((prev) => {
+              const isOnlyWelcome = prev.length === 1 && (prev[0].id === 'welcome' || prev[0].id === 'welcome-reset');
+              if (isOnlyWelcome || prev.length < data.messages.length) {
+                const hasWelcome = data.messages.some((m) => m.id === 'welcome');
+                const finalMessages = hasWelcome ? data.messages : [defaultWelcomeMessage, ...data.messages];
+                try {
+                  localStorage.setItem(storageKey, JSON.stringify(finalMessages));
+                } catch (e) {}
+                return finalMessages;
+              }
+              return prev;
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Could not sync chat history from backend:', err);
+      }
+    };
+    fetchRemoteHistory();
+    return () => { isCancelled = true; };
+  }, [effectiveThreadId, storageKey]);
 
   // Voice Assistant State
   const [isListening, setIsListening] = useState(false);
@@ -365,6 +463,20 @@ export default function AIChat({
         colors: ['#00f2fe', '#38ef7d', '#22d3ee', '#fbbf24'],
       });
 
+      // Save order number to localStorage for persistent tracking across tabs & sections
+      if (orderRes.order_number) {
+        try {
+          const existing = JSON.parse(localStorage.getItem('moss_agent_orders') || '[]');
+          if (!existing.includes(orderRes.order_number)) {
+            existing.unshift(orderRes.order_number);
+            localStorage.setItem('moss_agent_orders', JSON.stringify(existing.slice(0, 50)));
+          }
+        } catch (e) {
+          console.warn(e);
+        }
+        window.dispatchEvent(new CustomEvent('moss_order_placed', { detail: orderRes }));
+      }
+
       const confirmMsg = {
         id: Date.now().toString(),
         role: 'assistant',
@@ -391,18 +503,31 @@ export default function AIChat({
     }
   };
 
-  const clearChat = () => {
-    setMessages([
-      {
-        id: 'welcome-reset',
-        role: 'assistant',
-        text: "✨ Conversation reset! What would you like to explore or order today?",
-        product_cards: [],
-        placed_order: null,
-        order_bundle: null,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      },
-    ]);
+  const clearChat = async () => {
+    const confirmed = window.confirm("Are you sure you want to clear your conversation history?");
+    if (!confirmed) return;
+
+    const resetMsg = {
+      id: 'welcome-reset',
+      role: 'assistant',
+      text: "✨ Conversation reset! What would you like to explore or order today?",
+      product_cards: [],
+      placed_order: null,
+      order_bundle: null,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setMessages([resetMsg]);
+    try {
+      localStorage.removeItem(storageKey);
+      const token = localStorage.getItem('moss_auth_token');
+      await fetch(`${API_BASE}/api/chat/history?thread_id=${encodeURIComponent(effectiveThreadId)}`, {
+        method: 'DELETE',
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      });
+    } catch (e) {
+      console.warn('Failed to clear remote history:', e);
+    }
   };
 
   // Safe inline markdown renderer (bold, italic, code) without innerHTML
@@ -439,7 +564,14 @@ export default function AIChat({
 
   // Helper to render markdown tables, lists, and formatted text safely
   const renderFormattedText = (rawText) => {
-    if (!rawText) return null;
+    if (rawText === null || rawText === undefined) return null;
+    if (typeof rawText !== 'string') {
+      try {
+        return typeof rawText === 'object' ? JSON.stringify(rawText) : String(rawText);
+      } catch (e) {
+        return String(rawText);
+      }
+    }
 
     if (rawText.includes('|') && rawText.includes('---')) {
       const lines = rawText.split('\n');
@@ -902,7 +1034,7 @@ export default function AIChat({
                           </span>
                         </div>
                         <span style={{ fontWeight: 700, color: 'var(--mint-light)' }}>
-                          ₹{it.total_inr.toLocaleString('en-IN')}
+                          ₹{(Number(it.total_inr) || ((Number(it.unit_price_inr) || 0) * (Number(it.quantity) || 1))).toLocaleString('en-IN')}
                         </span>
                       </div>
                     ))}
@@ -919,9 +1051,9 @@ export default function AIChat({
                     <div>
                       <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Grand Total Payable:</span>
                       <div style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--mint-primary)' }}>
-                        ₹{msg.order_bundle.total_inr.toLocaleString('en-IN')}
+                        ₹{(Number(msg.order_bundle.total_inr) || 0).toLocaleString('en-IN')}
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: 6 }}>
-                          (${msg.order_bundle.total_usd?.toFixed(2)})
+                          (${Number(msg.order_bundle.total_usd || 0).toFixed(2)})
                         </span>
                       </div>
                     </div>

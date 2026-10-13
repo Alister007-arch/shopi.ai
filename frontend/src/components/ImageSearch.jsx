@@ -39,7 +39,11 @@ const SAMPLE_PRESETS = [
 export default function ImageSearch({
   onAddToCart,
   onAskInChat,
-  formatPrice = (p, inr) => inr ? `₹${inr.toLocaleString('en-IN')}` : `$${p.toFixed(2)}`,
+  formatPrice = (p, inr) => {
+    if (inr !== undefined && inr !== null && !isNaN(Number(inr))) return `₹${Math.round(Number(inr)).toLocaleString('en-IN')}`;
+    const n = Number(p);
+    return !isNaN(n) && p !== undefined && p !== null ? `₹${Math.round(n * 85).toLocaleString('en-IN')}` : '₹0';
+  },
   currency = 'INR',
 }) {
   const [selectedImage, setSelectedImage] = useState(null);

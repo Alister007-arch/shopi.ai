@@ -1578,15 +1578,47 @@ def track_order(order_identifier: str) -> str:
         if not row:
             return json.dumps({"status": "not_found", "message": f"Order '{order_identifier}' not found."})
 
+        status = row["status"] or "Confirmed"
+        st = status.lower()
+        step_idx = 0
+        if "pack" in st:
+            step_idx = 1
+        elif "ship" in st:
+            step_idx = 2
+        elif "deliver" in st:
+            step_idx = 3
+        elif "cancel" in st:
+            step_idx = -1
+        elif "return" in st or "exchange" in st or "refund" in st:
+            step_idx = 4
+
+        cursor.execute("""
+            SELECT oi.product_id, oi.product_name, oi.unit_price, oi.unit_price_inr,
+                   oi.quantity, oi.total_price, oi.total_price_inr, p.image_url
+            FROM order_items oi
+            LEFT JOIN products p ON oi.product_id = p.id
+            WHERE oi.order_id = ?
+        """, (row["id"],))
+        items_rows = cursor.fetchall()
+
+        masked_addr = mask_shipping_address(row["customer_address"])
+
         return json.dumps({
             "status": "success",
+            "id": row["id"],
             "order_number": row["order_number"],
-            "current_status": row["status"],
+            "current_status": status,
+            "order_status": status,
+            "step_index": step_idx,
+            "steps": ["Placed", "Packed", "Shipped", "Delivered"],
             "ordered_at": row["ordered_at"],
             "items_summary": row["items_summary"],
+            "items": [dict(it) for it in items_rows],
             "total_price_inr": row["total_price_inr"],
+            "total_price": row["total_price"],
             "payment_method": row["payment_method"],
-            "delivery_address_masked": mask_shipping_address(row["customer_address"]),
+            "delivery_address_masked": masked_addr,
+            "customer_address": masked_addr,
         }, indent=2)
     finally:
         conn.close()

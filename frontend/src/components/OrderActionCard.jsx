@@ -83,7 +83,11 @@ export default function OrderActionCard({
   onOpenAuthModal,
   onActionCompleted,
   onDismiss,
-  formatPrice = (p, inr) => inr ? `₹${inr.toLocaleString('en-IN')}` : `$${p}`,
+  formatPrice = (p, inr) => {
+    if (inr !== undefined && inr !== null && !isNaN(Number(inr))) return `₹${Math.round(Number(inr)).toLocaleString('en-IN')}`;
+    const n = Number(p);
+    return !isNaN(n) && p !== undefined && p !== null ? `₹${Math.round(n * 85).toLocaleString('en-IN')}` : '₹0';
+  },
 }) {
   const actionType = actionCard?.action || 'cancel';
   const cfg = ACTION_CONFIG[actionType] || ACTION_CONFIG.cancel;

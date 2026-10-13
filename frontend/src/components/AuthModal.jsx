@@ -237,13 +237,78 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
           </button>
         </div>
 
-        {/* Navigation / Tab Switcher */}
-        {tab === 'forgot' ? (
+        {/* Navigation / Tab Switcher (3 Tabs: Sign In | Register | Forgot Password) */}
+        <div style={{
+          display: 'flex',
+          borderBottom: '1px solid var(--moss-border, #f1f5f9)',
+          background: 'var(--bg-card-muted, #f8fafc)',
+        }}>
+          <button
+            type="button"
+            id="auth-tab-login"
+            onClick={() => handleSwitchTab('login')}
+            style={{
+              flex: 1,
+              padding: '12px 10px',
+              border: 'none',
+              background: tab === 'login' ? '#ffffff' : 'transparent',
+              fontWeight: tab === 'login' ? 700 : 500,
+              color: tab === 'login' ? 'var(--moss-deep, #1b2a20)' : 'var(--text-secondary, #64748b)',
+              fontSize: '0.84rem',
+              cursor: 'pointer',
+              borderBottom: tab === 'login' ? '2px solid var(--moss-deep, #1b2a20)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            id="auth-tab-register"
+            onClick={() => handleSwitchTab('register')}
+            style={{
+              flex: 1.2,
+              padding: '12px 10px',
+              border: 'none',
+              background: tab === 'register' ? '#ffffff' : 'transparent',
+              fontWeight: tab === 'register' ? 700 : 500,
+              color: tab === 'register' ? 'var(--moss-deep, #1b2a20)' : 'var(--text-secondary, #64748b)',
+              fontSize: '0.84rem',
+              cursor: 'pointer',
+              borderBottom: tab === 'register' ? '2px solid var(--moss-deep, #1b2a20)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            Register
+          </button>
+          <button
+            type="button"
+            id="auth-tab-forgot"
+            onClick={() => handleSwitchTab('forgot')}
+            style={{
+              flex: 1.2,
+              padding: '12px 10px',
+              border: 'none',
+              background: tab === 'forgot' ? '#ffffff' : 'transparent',
+              fontWeight: tab === 'forgot' ? 700 : 500,
+              color: tab === 'forgot' ? 'var(--moss-deep, #1b2a20)' : 'var(--text-secondary, #64748b)',
+              fontSize: '0.84rem',
+              cursor: 'pointer',
+              borderBottom: tab === 'forgot' ? '2px solid var(--moss-deep, #1b2a20)' : 'none',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            Forgot Password
+          </button>
+        </div>
+
+        {/* Step indicator and back navigation when Forgot Password tab is active */}
+        {tab === 'forgot' && (
           <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '12px 20px',
+            padding: '10px 20px',
             borderBottom: '1px solid var(--moss-border, #f1f5f9)',
             background: 'var(--bg-card-muted, #f8fafc)',
           }}>
@@ -261,7 +326,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
                 fontSize: '0.82rem',
                 fontWeight: 600,
                 cursor: 'pointer',
-                padding: '4px 0',
+                padding: '2px 0',
               }}
             >
               <ArrowLeft size={15} /> Back to Sign In
@@ -269,47 +334,6 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
             <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #64748b)', fontWeight: 600 }}>
               {forgotStep === 'request' ? 'Step 1: Request Code' : 'Step 2: Reset'}
             </span>
-          </div>
-        ) : (
-          <div style={{
-            display: 'flex',
-            borderBottom: '1px solid var(--moss-border, #f1f5f9)',
-            background: 'var(--bg-card-muted, #f8fafc)',
-          }}>
-            <button
-              type="button"
-              onClick={() => handleSwitchTab('login')}
-              style={{
-                flex: 1,
-                padding: '12px 16px',
-                border: 'none',
-                background: tab === 'login' ? '#ffffff' : 'transparent',
-                fontWeight: tab === 'login' ? 700 : 500,
-                color: tab === 'login' ? 'var(--moss-deep, #1b2a20)' : 'var(--text-secondary, #64748b)',
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                borderBottom: tab === 'login' ? '2px solid var(--moss-deep, #1b2a20)' : 'none',
-              }}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSwitchTab('register')}
-              style={{
-                flex: 1,
-                padding: '12px 16px',
-                border: 'none',
-                background: tab === 'register' ? '#ffffff' : 'transparent',
-                fontWeight: tab === 'register' ? 700 : 500,
-                color: tab === 'register' ? 'var(--moss-deep, #1b2a20)' : 'var(--text-secondary, #64748b)',
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                borderBottom: tab === 'register' ? '2px solid var(--moss-deep, #1b2a20)' : 'none',
-              }}
-            >
-              New to {BRAND.name}? Register
-            </button>
           </div>
         )}
 
@@ -571,10 +595,41 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
             </div>
           )}
 
+          {/* Quick Demo Account for Forgot Password testing */}
+          {tab === 'forgot' && forgotStep === 'request' && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -6 }}>
+              <button
+                id="auth-fill-demo-forgot-btn"
+                type="button"
+                onClick={() => {
+                  if (channel === 'email') {
+                    setEmail('shopper@moss.internal');
+                  } else {
+                    setForgotPhone('9876543210');
+                  }
+                  setError(null);
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  color: 'var(--moss-deep, #1b2a20)',
+                  fontSize: '0.74rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                }}
+              >
+                Fill Demo Account ({channel === 'email' ? 'shopper@moss.internal' : '9876543210'})
+              </button>
+            </div>
+          )}
+
           {/* Step 2 Dispatch Notice */}
           {tab === 'forgot' && forgotStep === 'reset' && (
             <div
-              id="auth-otp-dispatch-notice"
+              id="auth-email-otp-notice"
+              data-testid="auth-otp-dispatch-notice"
               style={{
                 background: '#f8fafc',
                 border: '1px solid #e2e8f0',
@@ -599,6 +654,9 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
                 <div>
                   A 6-digit verification code was dispatched via <strong>{channel.toUpperCase()}</strong> to{' '}
                   <strong>{channel === 'email' ? email : `+91 ${forgotPhone}`}</strong>.
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: 4 }}>
+                  (Note: In local testing without live SMTP/Twilio, the code is printed in your backend terminal console)
                 </div>
                 <button
                   type="button"
@@ -648,7 +706,28 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
               </div>
 
               {tab === 'login' && (
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+                  <button
+                    id="auth-fill-demo-customer-btn"
+                    type="button"
+                    onClick={() => {
+                      setEmail('shopper@moss.internal');
+                      setPassword('Shopper@123456');
+                      setError(null);
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      color: 'var(--moss-deep, #1b2a20)',
+                      fontSize: '0.76rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                    }}
+                  >
+                    Demo Shopper Login
+                  </button>
                   <button
                     id="auth-forgot-password-link"
                     type="button"

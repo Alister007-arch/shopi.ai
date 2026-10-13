@@ -607,6 +607,72 @@ def run_offline_fallback(
             "thread_id": thread_id,
         }
 
+    # 4.5. ORDER TRACKING INTENT (Live shipment & status tracking)
+    track_keywords = [
+        "track", "tracking", "kahan hai", "where is my order", "order status",
+        "status of order", "track order", "track my order", "mera order",
+        "order track", "track my active orders", "track package", "shipment status"
+    ]
+    is_track_intent = any(
+        msg_lower == tk or msg_lower.startswith(tk + " ") or f" {tk}" in msg_lower
+        for tk in track_keywords
+    )
+    if is_track_intent:
+        ord_match = re.search(r"ORD-[\w-]+", message.upper())
+        target_ord_no = ord_match.group(0) if ord_match else None
+        conn = tools.get_db_connection()
+        cursor = conn.cursor()
+        if target_ord_no:
+            cursor.execute("SELECT * FROM orders WHERE UPPER(order_number) = ?", (target_ord_no,))
+            ord_row = cursor.fetchone()
+        else:
+            if user_id:
+                cursor.execute("SELECT * FROM orders WHERE user_id = ? ORDER BY id DESC LIMIT 1", (user_id,))
+            elif customer_email:
+                cursor.execute("SELECT * FROM orders WHERE LOWER(customer_email) = LOWER(?) ORDER BY id DESC LIMIT 1", (customer_email.strip(),))
+            else:
+                cursor.execute("SELECT * FROM orders ORDER BY id DESC LIMIT 1")
+            ord_row = cursor.fetchone()
+        conn.close()
+
+        if not ord_row:
+            return {
+                "reply": "🔍 **No active orders found.** You can explore our catalog and place an order anytime. Once placed, you can track it live right here!",
+                "product_cards": [],
+                "cart_action": None,
+                "placed_order": None,
+                "order_bundle": None,
+                "thread_id": thread_id,
+            }
+
+        track_raw = tools.track_order.invoke({"order_identifier": ord_row["order_number"]})
+        track_data = json.loads(track_raw) if isinstance(track_raw, str) else track_raw
+        st = (track_data.get("current_status") or "Placed").lower()
+
+        step1 = "✓ Placed"
+        step2 = "✓ Packed" if any(w in st for w in ["pack", "ship", "deliver"]) else "○ Packed"
+        step3 = "✓ Shipped" if any(w in st for w in ["ship", "deliver"]) else "○ Shipped"
+        step4 = "✓ Delivered" if "deliver" in st else "○ Delivered"
+
+        reply_md = (
+            f"📦 **Live Order Tracking: #{track_data.get('order_number')}**\n\n"
+            f"- **Status:** `{track_data.get('current_status', 'Confirmed')}`\n"
+            f"- **Items:** {track_data.get('items_summary', 'Catalog Items')}\n"
+            f"- **Total:** ₹{track_data.get('total_price_inr', 0):,} ({track_data.get('payment_method', 'Verified Pay')})\n"
+            f"- **Delivery Destination:** {track_data.get('delivery_address_masked', 'Saved Address')}\n"
+            f"- **Ordered At:** {track_data.get('ordered_at', 'Recent')}\n\n"
+            f"🚚 **Shipment Progress:**\n`{step1}  ➜  {step2}  ➜  {step3}  ➜  {step4}`"
+        )
+
+        return {
+            "reply": reply_md,
+            "product_cards": [],
+            "cart_action": None,
+            "placed_order": track_data,
+            "order_bundle": None,
+            "thread_id": thread_id,
+        }
+
     # 5. TEXT CONFIRMATION ATTEMPTS
     confirm_keywords = [
         "confirm and pay", "confirm & pay", "confirm order", "place order",
@@ -953,9 +1019,15 @@ def run_agent_chat(
         "order", "buy", "purchase", "kharid", "kar do", "kardo", "mangwa", "checkout"
     ])
 
-    is_order_placement = not is_informational and (has_order_intent or has_auto_confirm_cmd)
+    is_track_intent = any(
+        msg_lower == tk or msg_lower.startswith(tk + " ") or f" {tk}" in msg_lower
+        for tk in [
+            "track", "tracking", "kahan hai", "where is my order", "order status",
+            "track order", "track my order", "mera order", "order track", "track my active orders", "track package"
+        ]
+    )
 
-    # Intercept cancellation, returns, exchanges, refunds, confirmation, or explicit order placement
+    # Intercept cancellation, returns, exchanges, refunds, confirmation, tracking, or explicit order placement
     if (
         is_cancel_intent
         or is_return_intent
@@ -963,6 +1035,7 @@ def run_agent_chat(
         or is_refund_intent
         or is_confirm_intent
         or is_order_placement
+        or is_track_intent
     ):
         res = run_offline_fallback(
             message,

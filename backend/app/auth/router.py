@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+import logging
 from backend.app.config import settings
 from backend.config.brand import BRAND
 from backend.app.db.session import get_db
@@ -18,6 +19,7 @@ from backend.app.auth.security import (
     decode_token, get_current_user
 )
 
+logger = logging.getLogger("trovi.auth")
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
