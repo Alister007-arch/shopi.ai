@@ -732,10 +732,10 @@ def prepare_order_action(
                     )
 
             # Fetch customer details if missing
-            cursor.execute("SELECT id, name, email FROM users WHERE id = ?", (authenticated_user_id,))
+            cursor.execute("SELECT id, full_name, email FROM users WHERE id = ?", (authenticated_user_id,))
             u_row = cursor.fetchone()
             resolved_email = customer_email or (u_row["email"] if u_row else "")
-            resolved_name = customer_name or (u_row["name"] if u_row else "Customer")
+            resolved_name = customer_name or (u_row["full_name"] if u_row else "Customer")
 
             summary = {
                 "action": "place_order",

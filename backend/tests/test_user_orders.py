@@ -136,3 +136,47 @@ def test_order_tracking_endpoint(client: TestClient):
     bad_resp = client.get("/api/orders/ORD-9999-NOTFOUND/track")
     assert bad_resp.status_code == 404
 
+
+def test_ai_placed_order_appears_in_my_orders(client: TestClient):
+    """
+    Validates that when AI places an order via conversation, it immediately appears
+    in GET /api/orders for the user.
+    """
+    pw = make_random_password()
+    reg = client.post("/api/auth/register", json={
+        "email": "ai_shopper_test@moss.internal",
+        "password": pw,
+        "full_name": "AI Shopper Test",
+    })
+    token = reg.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. Ask AI to order
+    chat_quote = client.post("/api/chat", json={
+        "message": "1 kg alphonso mango order kar do",
+        "thread_id": "ai_shopper_thread_1",
+    }, headers=headers)
+    assert chat_quote.status_code == 200
+    quote_data = chat_quote.json()
+    assert quote_data.get("order_bundle") is not None
+
+    # 2. Confirm order in Hindi/Hinglish
+    chat_confirm = client.post("/api/chat", json={
+        "message": "haan kar do",
+        "thread_id": "ai_shopper_thread_1",
+    }, headers=headers)
+    assert chat_confirm.status_code == 200
+    confirm_data = chat_confirm.json()
+    placed = confirm_data.get("placed_order")
+    assert placed is not None, f"Expected placed_order in response, got: {confirm_data}"
+    ord_num = placed["order_number"]
+    assert ord_num.startswith("ORD-")
+
+    # 3. Query GET /api/orders - order MUST appear in My Orders!
+    orders_resp = client.get("/api/orders", headers=headers)
+    assert orders_resp.status_code == 200
+    user_orders = orders_resp.json()["orders"]
+    order_nums = [o["order_number"] for o in user_orders]
+    assert ord_num in order_nums, f"Order {ord_num} not found in user's orders: {order_nums}"
+
+

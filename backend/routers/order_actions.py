@@ -86,6 +86,7 @@ def get_action_eligibility(
     action: str = Query("cancel", description="Action to check: cancel, return, exchange, refund, place_order"),
     item_id: Optional[int] = Query(None),
     reason: Optional[str] = Query(None),
+    items: Optional[str] = Query(None, description="Optional items JSON for place_order"),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -100,13 +101,28 @@ def get_action_eligibility(
 
         if action == "place_order":
             cursor = conn.cursor()
-            cursor.execute("""
-                SELECT c.product_id, c.quantity, p.name as product_name, p.stock
-                FROM cart_items c
-                JOIN products p ON c.product_id = p.id
-                WHERE c.user_id = ?
-            """, (current_user.id,))
-            cart_rows = [dict(r) for r in cursor.fetchall()]
+            cart_rows = []
+            if items:
+                try:
+                    parsed_items = json.loads(items) if isinstance(items, str) else items
+                    if isinstance(parsed_items, list):
+                        for it in parsed_items:
+                            pid = it.get("product_id")
+                            qty = it.get("quantity", 1)
+                            cursor.execute("SELECT id, name as product_name, stock FROM products WHERE id = ?", (pid,))
+                            p_row = cursor.fetchone()
+                            if p_row:
+                                cart_rows.append({"product_id": pid, "quantity": qty, "product_name": p_row["product_name"], "stock": p_row["stock"]})
+                except Exception:
+                    pass
+            if not cart_rows:
+                cursor.execute("""
+                    SELECT c.product_id, c.quantity, p.name as product_name, p.stock
+                    FROM cart_items c
+                    JOIN products p ON c.product_id = p.id
+                    WHERE c.user_id = ?
+                """, (current_user.id,))
+                cart_rows = [dict(r) for r in cursor.fetchall()]
             return check_action_eligibility({"items": cart_rows}, action=action, policies=policies)
 
         if not order_id:

@@ -969,13 +969,25 @@ export default function AIChat({
               </div>
 
               {/* Deterministic Order Action Card */}
-              {msg.action_card && (
+              {msg.action_card && (!msg.order_bundle || msg.action_card.action !== 'place_order') && (
                 <OrderActionCard
                   actionCard={msg.action_card}
                   currentUser={currentUser}
                   onOpenAuthModal={onOpenAuthModal}
                   formatPrice={formatPrice}
                   onActionCompleted={(result) => {
+                    const ordNo = result.order_number;
+                    if (ordNo) {
+                      try {
+                        const existing = JSON.parse(localStorage.getItem('moss_agent_orders') || '[]');
+                        if (!existing.includes(ordNo)) {
+                          existing.unshift(ordNo);
+                          localStorage.setItem('moss_agent_orders', JSON.stringify(existing.slice(0, 50)));
+                        }
+                      } catch (e) {
+                        console.warn(e);
+                      }
+                    }
                     // 1. Dispatch global window event to update Orders tab
                     window.dispatchEvent(new CustomEvent('moss_order_placed', { detail: result }));
                     // 2. Add system result message to chat history so LLM can talk about it afterwards
@@ -1217,32 +1229,7 @@ export default function AIChat({
                 </div>
               )}
 
-              {/* Order Action Service Interactive Card */}
-              {msg.action_card && (
-                <OrderActionCard
-                  actionCard={msg.action_card}
-                  currentUser={currentUser}
-                  onOpenAuthModal={onOpenAuthModal}
-                  onActionCompleted={(result) => {
-                    const actionSysMsg = {
-                      id: Date.now().toString(),
-                      role: 'assistant',
-                      text: `✓ **${result.action?.toUpperCase() || 'ACTION'} COMPLETED**: Order #${result.order_number} is now marked as \`${result.new_status}\`. ${
-                        result.refund ? `Refund of ₹${result.refund.refund_amount_inr} initiated (${result.refund.destination}).` : ''
-                      } ${result.ticket ? `Support Ticket #${result.ticket.ticket_number} created for human review.` : ''}`,
-                      product_cards: [],
-                      placed_order: null,
-                      cart_action: null,
-                      order_bundle: null,
-                      action_card: null,
-                      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    };
-                    setMessages((prev) => [...prev, actionSysMsg]);
-                    window.dispatchEvent(new CustomEvent('moss_order_placed', { detail: result }));
-                  }}
-                  formatPrice={formatPrice}
-                />
-              )}
+
 
               {/* Return Action Banner */}
               {msg.return_action && (

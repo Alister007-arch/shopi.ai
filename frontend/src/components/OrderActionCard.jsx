@@ -158,6 +158,9 @@ export default function OrderActionCard({
         if (selectedOrderId) {
           params.append('order_id', selectedOrderId);
         }
+        if (actionType === 'place_order' && actionCard?.items) {
+          params.append('items', JSON.stringify(actionCard.items));
+        }
 
         const res = await fetch(`${API_BASE}/api/actions/eligibility?${params.toString()}`, {
           headers: {

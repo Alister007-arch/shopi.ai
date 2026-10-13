@@ -1211,8 +1211,21 @@ def get_orders(
     ord_list = [o.strip() for o in order_numbers.split(",") if o.strip()] if order_numbers else []
 
     if current_user.role != "admin":
-        query += " AND (o.user_id = ? OR LOWER(o.customer_email) = LOWER(?))"
-        params.extend([current_user.id, current_user.email.strip()])
+        if ord_list:
+            placeholders = ",".join(["?"] * len(ord_list))
+            # Auto-claim unassigned/session orders for current user
+            cursor.execute(f"""
+                UPDATE orders SET user_id = ?, customer_email = ?
+                WHERE order_number IN ({placeholders})
+                  AND (user_id IS NULL OR user_id = 0 OR LOWER(customer_email) IN ('shopper@trovi.internal', 'customer@moss.store', ''))
+            """, [current_user.id, current_user.email.strip()] + ord_list)
+            conn.commit()
+
+            query += f" AND (o.user_id = ? OR LOWER(o.customer_email) = LOWER(?) OR (o.order_number IN ({placeholders}) AND (o.user_id = ? OR o.user_id IS NULL)))"
+            params.extend([current_user.id, current_user.email.strip()] + ord_list + [current_user.id])
+        else:
+            query += " AND (o.user_id = ? OR LOWER(o.customer_email) = LOWER(?))"
+            params.extend([current_user.id, current_user.email.strip()])
     else:
         if ord_list:
             placeholders = ",".join(["?"] * len(ord_list))

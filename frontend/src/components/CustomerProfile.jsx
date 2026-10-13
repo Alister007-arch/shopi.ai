@@ -178,7 +178,15 @@ export default function CustomerProfile({
     setOrdersLoading(true);
     try {
       if (token) {
-        const queryUrl = email ? `${API_BASE}/api/orders?customer_email=${encodeURIComponent(email)}` : `${API_BASE}/api/orders`;
+        let storedList = [];
+        try {
+          storedList = JSON.parse(localStorage.getItem('moss_agent_orders') || '[]');
+        } catch (e) {}
+
+        const queryParts = [];
+        if (email) queryParts.push(`customer_email=${encodeURIComponent(email)}`);
+        if (storedList.length > 0) queryParts.push(`order_numbers=${encodeURIComponent(storedList.join(','))}`);
+        const queryUrl = `${API_BASE}/api/orders${queryParts.length > 0 ? `?${queryParts.join('&')}` : ''}`;
         const res = await fetch(queryUrl, {
           headers: {
             'Content-Type': 'application/json',
