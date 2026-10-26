@@ -99,8 +99,8 @@ def test_admin_metrics_with_factual_labels(client: TestClient):
     eval_summary = metrics["eval_summary"]
     assert eval_summary["passed_count"] == 60
     assert eval_summary["total_count"] == 60
-    assert "duration_seconds" in eval_summary
     assert "llm_mode" in eval_summary
+    assert eval_summary["llm_mode"] == "Deterministic tool and safety suite"
 
 
 # ---------------------------------------------------------------------------

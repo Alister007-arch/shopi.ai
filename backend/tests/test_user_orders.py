@@ -160,19 +160,36 @@ def test_ai_placed_order_appears_in_my_orders(client: TestClient):
     quote_data = chat_quote.json()
     assert quote_data.get("order_bundle") is not None
 
-    # 2. Confirm order in Hindi/Hinglish
+    # 2. Confirm in Hindi/Hinglish in chat must NOT place order directly
     chat_confirm = client.post("/api/chat", json={
         "message": "haan kar do",
         "thread_id": "ai_shopper_thread_1",
     }, headers=headers)
     assert chat_confirm.status_code == 200
     confirm_data = chat_confirm.json()
-    placed = confirm_data.get("placed_order")
-    assert placed is not None, f"Expected placed_order in response, got: {confirm_data}"
+    assert confirm_data.get("placed_order") is None, "Typing confirm in chat must NOT place an order directly"
+
+    # 3. Order is confirmed through backend confirmation endpoint (triggered by user's Confirm button)
+    bundle_items = quote_data["order_bundle"]["items"]
+    items_payload = [{"product_id": it["product_id"], "quantity": it["quantity"]} for it in bundle_items]
+    conf_resp = client.post("/api/order/checkout", json={
+        "items": items_payload,
+        "shipping_address": {
+            "recipient_name": "AI Shopper",
+            "phone": "9845012345",
+            "street_address": "45 Lotus Boulevard",
+            "city": "Bengaluru",
+            "state": "Karnataka",
+            "postal_code": "560001",
+        },
+        "quote_token": quote_data["order_bundle"].get("quote_token"),
+    }, headers={**headers, "Idempotency-Key": "idemp_test_user_ai_orders_1"})
+    assert conf_resp.status_code == 200
+    placed = conf_resp.json()
     ord_num = placed["order_number"]
     assert ord_num.startswith("ORD-")
 
-    # 3. Query GET /api/orders - order MUST appear in My Orders!
+    # 4. Query GET /api/orders - AI placed order MUST appear in My Orders!
     orders_resp = client.get("/api/orders", headers=headers)
     assert orders_resp.status_code == 200
     user_orders = orders_resp.json()["orders"]

@@ -5,8 +5,8 @@ import ImageSearch from './components/ImageSearch';
 import Catalog from './components/Catalog';
 import CartOrdersDrawer from './components/CartOrdersDrawer';
 import AuthModal from './components/AuthModal';
-import AdminDashboard from './components/AdminDashboard';
-import CustomerProfile from './components/CustomerProfile';
+const AdminDashboard = React.lazy(() => import('./components/AdminDashboard'));
+const CustomerProfile = React.lazy(() => import('./components/CustomerProfile'));
 import HelpModal from './components/HelpModal';
 import PoliciesView from './components/PoliciesView';
 import BackendStatusIndicator from './components/BackendStatusIndicator';
@@ -506,59 +506,71 @@ export default function App() {
         )}
 
         {activeTab === 'profile' && (
-          <CustomerProfile
-            currentUser={currentUser}
-            onUpdateUser={(updated) => {
-              setCurrentUser(updated);
-              showToast('Profile updated successfully.');
-            }}
-            onLogout={() => {
-              authApi.logout();
-              setCurrentUser(null);
-              showToast(`Signed out from ${BRAND.name}.`);
-              setActiveTab('catalog');
-            }}
-            wishlistItems={wishlistItems}
-            onToggleWishlist={handleToggleWishlist}
-            onClearWishlist={handleClearWishlist}
-            onAddToCart={handleAddToCart}
-            formatPrice={formatPrice}
-            currency={currency}
-            initialSection={profileInitialSection}
-            onAskInChat={handleAskInChat}
-            onNavigateHome={() => setActiveTab('catalog')}
-            pinCode={pinCode}
-            onChangePin={handlePinChange}
-            onOpenAuthModal={handleOpenAuthModal}
-          />
+          <React.Suspense fallback={
+            <div style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--moss-deep)' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Loading profile...</span>
+            </div>
+          }>
+            <CustomerProfile
+              currentUser={currentUser}
+              onUpdateUser={(updated) => {
+                setCurrentUser(updated);
+                showToast('Profile updated successfully.');
+              }}
+              onLogout={() => {
+                authApi.logout();
+                setCurrentUser(null);
+                showToast(`Signed out from ${BRAND.name}.`);
+                setActiveTab('catalog');
+              }}
+              wishlistItems={wishlistItems}
+              onToggleWishlist={handleToggleWishlist}
+              onClearWishlist={handleClearWishlist}
+              onAddToCart={handleAddToCart}
+              formatPrice={formatPrice}
+              currency={currency}
+              initialSection={profileInitialSection}
+              onAskInChat={handleAskInChat}
+              onNavigateHome={() => setActiveTab('catalog')}
+              pinCode={pinCode}
+              onChangePin={handlePinChange}
+              onOpenAuthModal={handleOpenAuthModal}
+            />
+          </React.Suspense>
         )}
 
         {activeTab === 'orders' && (
-          <CustomerProfile
-            currentUser={currentUser}
-            onUpdateUser={(updated) => {
-              setCurrentUser(updated);
-              showToast('Profile updated successfully.');
-            }}
-            onLogout={() => {
-              authApi.logout();
-              setCurrentUser(null);
-              showToast(`Signed out from ${BRAND.name}.`);
-              setActiveTab('catalog');
-            }}
-            wishlistItems={wishlistItems}
-            onToggleWishlist={handleToggleWishlist}
-            onClearWishlist={handleClearWishlist}
-            onAddToCart={handleAddToCart}
-            formatPrice={formatPrice}
-            currency={currency}
-            initialSection="orders"
-            onAskInChat={handleAskInChat}
-            onNavigateHome={() => setActiveTab('catalog')}
-            pinCode={pinCode}
-            onChangePin={handlePinChange}
-            onOpenAuthModal={handleOpenAuthModal}
-          />
+          <React.Suspense fallback={
+            <div style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--moss-deep)' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Loading orders...</span>
+            </div>
+          }>
+            <CustomerProfile
+              currentUser={currentUser}
+              onUpdateUser={(updated) => {
+                setCurrentUser(updated);
+                showToast('Profile updated successfully.');
+              }}
+              onLogout={() => {
+                authApi.logout();
+                setCurrentUser(null);
+                showToast(`Signed out from ${BRAND.name}.`);
+                setActiveTab('catalog');
+              }}
+              wishlistItems={wishlistItems}
+              onToggleWishlist={handleToggleWishlist}
+              onClearWishlist={handleClearWishlist}
+              onAddToCart={handleAddToCart}
+              formatPrice={formatPrice}
+              currency={currency}
+              initialSection="orders"
+              onAskInChat={handleAskInChat}
+              onNavigateHome={() => setActiveTab('catalog')}
+              pinCode={pinCode}
+              onChangePin={handlePinChange}
+              onOpenAuthModal={handleOpenAuthModal}
+            />
+          </React.Suspense>
         )}
 
         {activeTab === 'policies' && (
@@ -913,17 +925,28 @@ export default function App() {
 
       {/* Admin Enterprise Operations Dashboard Modal */}
       {isAdminOpen && (
-        <AdminDashboard
-          currentUser={currentUser}
-          onClose={() => setIsAdminOpen(false)}
-          onProductUpdated={() => {
-            showToast('Catalog updated in admin console.');
-          }}
-          onAdminLoginSuccess={(adminUser) => {
-            setCurrentUser(adminUser);
-            showToast(`Administrator authenticated: ${adminUser.full_name}`);
-          }}
-        />
+        <React.Suspense fallback={
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff'
+          }}>
+            <div style={{ padding: '20px 28px', background: '#1c3024', borderRadius: 10, fontWeight: 700, fontSize: '0.9rem' }}>
+              Loading Admin Operations Console...
+            </div>
+          </div>
+        }>
+          <AdminDashboard
+            currentUser={currentUser}
+            onClose={() => setIsAdminOpen(false)}
+            onProductUpdated={() => {
+              showToast('Catalog updated in admin console.');
+            }}
+            onAdminLoginSuccess={(adminUser) => {
+              setCurrentUser(adminUser);
+              showToast(`Administrator authenticated: ${adminUser.full_name}`);
+            }}
+          />
+        </React.Suspense>
       )}
 
       {/* Floating Agent Launcher Tab in Bottom-Right Corner ("Down Right Corner") */}

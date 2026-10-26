@@ -1,11 +1,12 @@
 {
+  "suite": "deterministic",
   "passed_count": 60,
   "total_count": 60,
   "pass_pct": 100.0,
-  "duration_seconds": 0.44,
-  "is_mock_llm": false,
-  "llm_mode": "Live LLM (Groq Llama-3.3-70b)",
-  "timestamp": "2026-10-18T11:52:20Z",
+  "duration_seconds": 1.63,
+  "is_mock_llm": true,
+  "llm_mode": "Deterministic tool and safety suite",
+  "timestamp": "2026-10-26T19:04:45Z",
   "domain_scores": {
     "search_discovery": {
       "passed": 10,

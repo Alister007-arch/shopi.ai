@@ -6,7 +6,7 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "shopai.db")
 
 # 100% Verified, high-resolution product images tailored to each exact product identity (HTTP 200 OK verified)
 # 100% Verified, locally hosted high-resolution product images tailored to each exact real-world identity
-PRODUCT_IMAGES = {i: f"/products/prod_{i:02d}.jpg" for i in range(1, 160)}
+PRODUCT_IMAGES = {i: f"/products/prod_{i:02d}.webp" for i in range(1, 160)}
 
 def create_database(db_path: str = None):
     target_path = db_path or os.environ.get("SHOPI_DB_PATH", DB_PATH)

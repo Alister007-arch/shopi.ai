@@ -362,6 +362,17 @@ class MultiCheckoutRequest(BaseModel):
     idempotency_key: Optional[str] = None
     target_budget_inr: Optional[float] = None
     budget_approved: Optional[bool] = False
+    quote_token: Optional[str] = None
+
+
+class ConfirmQuoteOrderRequest(BaseModel):
+    quote_token: str = Field(..., min_length=1)
+    address_id: Optional[Union[int, str]] = None
+    shipping_address: Optional[ShippingAddress] = None
+    billing_address: Optional[BillingAddress] = None
+    customer_name: Optional[str] = None
+    payment_method: Optional[str] = "upi"
+    idempotency_key: Optional[str] = None
 
 
 class PrepareOrderRequest(BaseModel):
@@ -1202,6 +1213,11 @@ def resolve_and_validate_shipping_address(
         formatted_address = shipping_address.to_formatted_string()
         return cust_name, formatted_address
 
+    # If neither was explicitly passed, attempt resolving user's default saved address
+    user_addr = db.query(UserAddress).filter(UserAddress.user_id == current_user.id).order_by(UserAddress.is_default.desc(), UserAddress.id.desc()).first()
+    if user_addr:
+        return resolve_and_validate_shipping_address(user_addr.id, None, current_user, db)
+
     raise HTTPException(
         status_code=422,
         detail="A real, validated shipping address is required to place an order (name, 10-digit phone, 6-digit PIN, address, city, state)."
@@ -1211,6 +1227,75 @@ def resolve_and_validate_shipping_address(
 # ---------------------------------------------------------------------------
 # Order Checkout & Lifecycle Endpoints
 # ---------------------------------------------------------------------------
+
+@app.post("/api/order/confirm")
+def confirm_quote_order_endpoint(
+    req: ConfirmQuoteOrderRequest,
+    idempotency_key_header: Optional[str] = Header(None, alias="Idempotency-Key"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Dedicated backend confirmation endpoint triggered by user's Confirm button for AI quote orders.
+    Verifies HMAC-signed, single-use, time-limited quote token, authenticated user,
+    shipping address, and Idempotency-Key header.
+    """
+    idemp_key = idempotency_key_header or req.idempotency_key
+    if not idemp_key or not idemp_key.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Idempotency-Key header is required for confirming orders."
+        )
+
+    # 1. Verify cryptographic quote token
+    from backend.app.agent.quote import verify_cryptographic_quote
+    q_verify = verify_cryptographic_quote(req.quote_token)
+    if not q_verify.get("valid"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Quote verification failed: {q_verify.get('reason')}"
+        )
+
+    # 2. Resolve & validate real shipping address
+    cust_name, cust_address = resolve_and_validate_shipping_address(
+        address_id=req.address_id,
+        shipping_address=req.shipping_address,
+        current_user=current_user,
+        db=db,
+    )
+
+    items = q_verify.get("items", [])
+    raw_res = tools.confirm_and_place_order.invoke({
+        "items_json": json.dumps(items),
+        "customer_name": cust_name,
+        "customer_address": cust_address,
+        "customer_email": current_user.email,
+        "idempotency_key": idemp_key.strip(),
+        "quote_token": req.quote_token,
+        "target_budget_inr": q_verify.get("target_budget_inr"),
+        "budget_approved": True,
+        "payment_method": req.payment_method or "UPI / QR",
+        "user_id": current_user.id,
+    })
+    res_data = json.loads(raw_res)
+    if res_data.get("status") == "error":
+        raise HTTPException(status_code=400, detail=res_data.get("message", "Checkout failed"))
+
+    # Multi-channel notification dispatch
+    from backend.app.notifications import send_order_confirmation_notification
+    try:
+        send_order_confirmation_notification({
+            "order_number": res_data.get("order_number"),
+            "customer_name": cust_name,
+            "customer_email": current_user.email,
+            "customer_address": cust_address,
+            "total_price_inr": res_data.get("total_price_inr", 0),
+        })
+    except Exception as e:
+        logger.warning(f"Notification dispatch notice: {e}")
+
+    return res_data
+
 
 @app.post("/api/order/checkout")
 def multi_checkout_endpoint(
@@ -1225,6 +1310,13 @@ def multi_checkout_endpoint(
     and decrements stock. Order is strictly attached to the authenticated user.
     """
     idemp_key = idempotency_key_header or req.idempotency_key
+
+    # If quote_token supplied, verify HMAC signature, single use, and expiry
+    if req.quote_token:
+        from backend.app.agent.quote import verify_cryptographic_quote
+        q_verify = verify_cryptographic_quote(req.quote_token)
+        if not q_verify.get("valid"):
+            raise HTTPException(status_code=400, detail=f"Quote verification failed: {q_verify.get('reason')}")
 
     # Enforce real, validated shipping address
     cust_name, cust_address = resolve_and_validate_shipping_address(
@@ -1258,6 +1350,7 @@ def multi_checkout_endpoint(
         "customer_address": cust_address,
         "customer_email": cust_email,
         "idempotency_key": idemp_key,
+        "quote_token": req.quote_token,
         "target_budget_inr": req.target_budget_inr,
         "budget_approved": req.budget_approved or False,
         "payment_method": payment_method_str,

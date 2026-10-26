@@ -595,8 +595,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess, promptMessag
             </div>
           )}
 
-          {/* Quick Demo Account for Forgot Password testing */}
-          {tab === 'forgot' && forgotStep === 'request' && (
+          {/* Quick Demo Account for Forgot Password testing (strictly DEV & VITE_DEMO_MODE=true only, never in production) */}
+          {import.meta.env.DEV && import.meta.env.VITE_DEMO_MODE === 'true' && tab === 'forgot' && forgotStep === 'request' && (
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -6 }}>
               <button
                 id="auth-fill-demo-forgot-btn"

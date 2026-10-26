@@ -29,40 +29,8 @@ import {
 import confetti from 'canvas-confetti';
 import { API_BASE } from '../config';
 import { BRAND } from '../config/brand';
+import { authApi } from '../api/auth';
 import { lookupPincode, getSelectableDeliveryOptions } from '../utils/deliveryEngine';
-
-const DEFAULT_ADDRESS_BOOK = [
-  {
-    id: 'addr_home',
-    label: 'Home',
-    recipient_name: 'Aditi Sharma',
-    phone: '9876543210',
-    postal_code: '560034',
-    street_address: 'Flat 402, Green Park Avenue, 5th Main',
-    city: 'Bengaluru',
-    state: 'Karnataka',
-  },
-  {
-    id: 'addr_office',
-    label: 'Office',
-    recipient_name: 'Aditi Sharma',
-    phone: '9876543210',
-    postal_code: '560095',
-    street_address: 'EcoSpace Tech Park, Tower 3B, Outer Ring Road',
-    city: 'Bengaluru',
-    state: 'Karnataka',
-  },
-  {
-    id: 'addr_farmhouse',
-    label: 'Farmhouse',
-    recipient_name: 'Dev Sharma',
-    phone: '9876543211',
-    postal_code: '562125',
-    street_address: 'Green Meadows Farm 12, Sarjapur Rural Road',
-    city: 'Bengaluru',
-    state: 'Karnataka',
-  },
-];
 
 export default function CartOrdersDrawer({
   isOpen,
@@ -89,23 +57,24 @@ export default function CartOrdersDrawer({
     () => currentUser?.email || localStorage.getItem('moss_customer_email') || ''
   );
 
-  // Address Book state (initialized from localStorage or defaults)
-  const [addressBook, setAddressBook] = useState(() => {
-    try {
-      const saved = localStorage.getItem('moss_saved_address_book');
-      return saved ? JSON.parse(saved) : DEFAULT_ADDRESS_BOOK;
-    } catch {
-      return DEFAULT_ADDRESS_BOOK;
-    }
-  });
+  // Address Book state (loaded strictly from authenticated user API data)
+  const [addressBook, setAddressBook] = useState([]);
 
   // Selected Shipping Address
-  const [shippingAddress, setShippingAddress] = useState(DEFAULT_ADDRESS_BOOK[0]);
+  const [shippingAddress, setShippingAddress] = useState({
+    label: 'Delivery Address',
+    recipient_name: currentUser?.full_name || '',
+    phone: currentUser?.phone || '',
+    postal_code: '',
+    street_address: '',
+    city: 'Bengaluru',
+    state: 'Karnataka',
+  });
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [newAddress, setNewAddress] = useState({
     label: 'Custom',
-    recipient_name: '',
-    phone: '',
+    recipient_name: currentUser?.full_name || '',
+    phone: currentUser?.phone || '',
     postal_code: '',
     street_address: '',
     city: 'Bengaluru',
@@ -130,13 +99,13 @@ export default function CartOrdersDrawer({
   const [selectedSlot, setSelectedSlot] = useState('morning'); // 'morning', 'afternoon', 'evening'
   const [selectedDeliveryTier, setSelectedDeliveryTier] = useState('eco_standard');
   const [paymentMethod, setPaymentMethod] = useState('upi'); // 'upi', 'card', 'netbanking', 'cod'
-  const [upiVpa, setUpiVpa] = useState('aditi@okhdfcbank');
+  const [upiVpa, setUpiVpa] = useState('');
   const [showQrCode, setShowQrCode] = useState(false);
   const [cardDetails, setCardDetails] = useState({
-    number: '4242 •••• •••• 4242',
-    name: 'Aditi Sharma',
-    expiry: '12/28',
-    cvv: '•••',
+    number: '',
+    name: currentUser?.full_name || '',
+    expiry: '',
+    cvv: '',
   });
   const [selectedBank, setSelectedBank] = useState('HDFC Bank');
 
@@ -172,10 +141,55 @@ export default function CartOrdersDrawer({
     }
   }, [isOpen]);
 
+  // Fetch saved addresses strictly from authenticated API data
+  useEffect(() => {
+    let isMounted = true;
+    const fetchUserAddresses = async () => {
+      if (!currentUser && !authApi.getToken()) {
+        if (isMounted) setAddressBook([]);
+        return;
+      }
+      try {
+        const res = await authApi.getUserAddresses();
+        const rawList = res?.addresses || [];
+        const normalized = rawList.map((a) => {
+          const streetStr = (a.street_address || `${a.flat ? a.flat + ', ' : ''}${a.street || ''}${a.landmark ? ', ' + a.landmark : ''}`).trim();
+          return {
+            id: String(a.id),
+            label: a.title || a.tag || 'Saved',
+            recipient_name: a.name || currentUser?.full_name || '',
+            phone: a.phone || currentUser?.phone || '',
+            postal_code: a.pinCode || a.pin_code || '',
+            street_address: streetStr,
+            city: a.city || 'Bengaluru',
+            state: a.state || 'Karnataka',
+            is_default: Boolean(a.isDefault || a.is_default),
+          };
+        });
+        if (isMounted) {
+          setAddressBook(normalized);
+          const defaultAddr = normalized.find((addr) => addr.is_default) || normalized[0];
+          if (defaultAddr) {
+            setShippingAddress(defaultAddr);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch saved addresses in drawer:', err);
+        if (isMounted) setAddressBook([]);
+      }
+    };
+    if (isOpen) {
+      fetchUserAddresses();
+    }
+    return () => { isMounted = false; };
+  }, [isOpen, currentUser]);
+
   // Persist updated address book to localStorage
   useEffect(() => {
     try {
-      localStorage.setItem('moss_saved_address_book', JSON.stringify(addressBook));
+      if (addressBook.length > 0) {
+        localStorage.setItem('moss_saved_address_book', JSON.stringify(addressBook));
+      }
     } catch (e) {
       console.warn('Could not save address book:', e);
     }
@@ -1159,32 +1173,73 @@ export default function CartOrdersDrawer({
                       </button>
                     </div>
 
-                    {/* Saved Address Book Selector */}
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {addressBook.map((book) => (
-                        <button
-                          key={book.id || book.label}
-                          type="button"
-                          onClick={() => setShippingAddress(book)}
-                          style={{
-                            padding: '4px 10px',
-                            borderRadius: 'var(--radius-full)',
-                            border: shippingAddress.street_address === book.street_address ? '1.5px solid var(--moss-deep)' : '1px solid var(--moss-border)',
-                            background: shippingAddress.street_address === book.street_address ? 'var(--moss-tint)' : '#ffffff',
-                            color: 'var(--moss-deep)',
-                            fontSize: '0.72rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 4,
-                          }}
-                        >
-                          {shippingAddress.street_address === book.street_address && <Check size={11} />}
-                          <span>{book.label}</span>
-                        </button>
-                      ))}
-                    </div>
+                    {/* Saved Address Book Selector or Clean Empty State */}
+                    {addressBook && addressBook.length > 0 ? (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {addressBook.map((book) => (
+                          <button
+                            key={book.id || book.label}
+                            type="button"
+                            onClick={() => setShippingAddress(book)}
+                            style={{
+                              padding: '4px 10px',
+                              borderRadius: 'var(--radius-full)',
+                              border: shippingAddress.street_address === book.street_address ? '1.5px solid var(--moss-deep)' : '1px solid var(--moss-border)',
+                              background: shippingAddress.street_address === book.street_address ? 'var(--moss-tint)' : '#ffffff',
+                              color: 'var(--moss-deep)',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}
+                          >
+                            {shippingAddress.street_address === book.street_address && <Check size={11} />}
+                            <span>{book.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{
+                        padding: '10px 14px',
+                        borderRadius: 8,
+                        background: 'var(--bg-card-muted)',
+                        border: '1px dashed var(--moss-border)',
+                        fontSize: '0.78rem',
+                        color: 'var(--text-secondary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 10,
+                      }}>
+                        {currentUser ? (
+                          <span>No saved delivery addresses found. Enter your address in the form below.</span>
+                        ) : (
+                          <>
+                            <span>Sign in to access your saved delivery addresses.</span>
+                            {onOpenAuthModal && (
+                              <button
+                                type="button"
+                                onClick={() => onOpenAuthModal({ message: 'Sign in to access your saved addresses', returnTo: 'cart' })}
+                                style={{
+                                  background: 'var(--moss-deep)',
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  borderRadius: 6,
+                                  padding: '4px 10px',
+                                  fontSize: '0.72rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Sign In
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
 
                     {/* Inline Form for Adding New Address */}
                     {showNewAddressForm && (

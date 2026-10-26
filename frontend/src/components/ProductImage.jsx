@@ -77,7 +77,7 @@ export default function ProductImage({
         <picture style={{ width: '100%', height: '100%', display: 'block' }}>
           {webpSrc && <source srcSet={webpSrc} type="image/webp" />}
           <img
-            src={src}
+            src={webpSrc || src}
             alt={alt}
             width={width}
             height={height}

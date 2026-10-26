@@ -701,7 +701,7 @@ def run_offline_fallback(
         "bhai kar do", "kar do bhai", "order karo", "karo order",
         "mangwa do", "bhej do", "pack kar do", "theek hai", "thik hai", "le lo"
     ]
-    # If user has a pending bundle quote waiting in this session, confirmation keywords execute it
+    # If user has a pending bundle quote waiting in this session, typing in chat prompts to click Confirm button
     if thread_id in PENDING_BUNDLES:
         is_bundle_confirm = any(
             msg_lower == ck
@@ -711,42 +711,33 @@ def run_offline_fallback(
             for ck in confirm_keywords
         ) or any(w in msg_lower for w in ["order kar do", "kar do", "kardo", "ha kar do", "haan kar do", "bhai kar do", "confirm", "proceed", "bhej do", "pack kar do"])
         if is_bundle_confirm:
-            bundle = PENDING_BUNDLES.pop(thread_id)
-            placed_raw = tools.confirm_and_place_order.invoke({
-                "items_json": json.dumps(bundle["items"]),
-                "customer_name": customer_name or bundle.get("customer_name") or "Verified Customer",
-                "customer_email": customer_email or "shopper@trovi.internal",
-                "customer_address": bundle.get("address") or customer_address or SAVED_ADDRESSES["home"],
-                "idempotency_key": idempotency_key,
-                "user_id": user_id,
-            })
-            placed = json.loads(placed_raw) if isinstance(placed_raw, str) else placed_raw
+            bundle = PENDING_BUNDLES[thread_id]
             item_pids = [it["product_id"] for it in bundle["items"]]
             prods = [p for p in all_prods if p["id"] in item_pids]
-
-            if not isinstance(placed, dict) or placed.get("status") == "error":
-                PENDING_BUNDLES[thread_id] = bundle
-                err_msg = placed.get("message", "Unable to complete order.") if isinstance(placed, dict) else "Unable to complete order."
-                is_auth_err = (isinstance(placed, dict) and placed.get("error_type") == "auth_required") or not is_auth
+            is_auth_err = not is_auth
+            if is_auth_err:
                 return {
-                    "reply": "🔒 Please sign in to place your order. Your quote is ready—once signed in, simply say 'confirm' or click below!" if is_auth_err else f"⚠️ Could not place order: {err_msg}",
+                    "reply": "🔒 Please sign in to place your order. Your quote is ready—once signed in, please click the interactive Confirm button below!",
                     "product_cards": prods,
                     "cart_action": None,
                     "placed_order": None,
                     "order_bundle": bundle,
-                    "requires_auth": is_auth_err,
+                    "requires_auth": True,
                     "thread_id": thread_id,
                 }
-
-            order_num = placed.get("order_number")
-            tot_price = placed.get("total_price_inr") or placed.get("total_inr") or bundle.get("total_inr", 0)
             return {
-                "reply": f"🎉 **Order Placed Successfully!** Order **#{order_num}**.\n\nTotal: ₹{tot_price:,} | Estimated Delivery: {placed.get('estimated_delivery', 'Standard (2-3 Days)')}\nYou can view and track your order live anytime in **My Orders**.",
+                "reply": "To complete and place your order safely, please click the interactive **Confirm Order** button on the action card below. Orders cannot be executed by typing text in chat.",
                 "product_cards": prods,
                 "cart_action": None,
-                "placed_order": placed,
-                "order_bundle": None,
-                "action_card": None,
+                "placed_order": None,
+                "order_bundle": bundle,
+                "action_card": {
+                    "type": "order_action",
+                    "action": "place_order",
+                    "items": bundle["items"],
+                    "order_bundle": bundle,
+                    "quote_token": bundle.get("quote_token"),
+                },
                 "thread_id": thread_id,
             }
 
@@ -800,35 +791,9 @@ def run_offline_fallback(
                 "thread_id": thread_id,
             }
 
-        has_direct_order = any(k in msg_lower for k in [
-            "auto order", "direct order", "place directly", "order directly", "buy directly", "place now"
-        ])
-        if has_direct_order and items_to_search:
-            placed_raw = tools.confirm_and_place_order.invoke({
-                "items_json": json.dumps(bundle["items"]),
-                "customer_name": customer_name or "Verified Customer",
-                "customer_email": customer_email or "shopper@trovi.internal",
-                "customer_address": addr,
-                "idempotency_key": idempotency_key,
-                "user_id": user_id,
-            })
-            placed = json.loads(placed_raw) if isinstance(placed_raw, str) else placed_raw
-            if isinstance(placed, dict) and placed.get("status") == "success":
-                order_num = placed.get("order_number")
-                tot_price = placed.get("total_price_inr") or bundle.get("total_inr", 0)
-                return {
-                    "reply": f"🎉 **Order Placed Instantly!** Order **#{order_num}**.\n\nTotal: ₹{tot_price:,} | Delivered to: {addr}\nYou can track this live under **My Orders**.",
-                    "product_cards": matching_products,
-                    "cart_action": None,
-                    "placed_order": placed,
-                    "order_bundle": None,
-                    "action_card": None,
-                    "thread_id": thread_id,
-                }
-
         PENDING_BUNDLES[thread_id] = bundle
         return {
-            "reply": f"I've prepared your order quote for ₹{total_inr:,} to be delivered to {addr}. Say **'confirm'** or click Confirm Order below to place it!",
+            "reply": f"I've prepared your order quote for ₹{total_inr:,} to be delivered to {addr}. Please review and click the interactive **Confirm Order** button below to place your order.",
             "action_card": {
                 "type": "order_action",
                 "action": "place_order",
