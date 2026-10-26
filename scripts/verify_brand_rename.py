@@ -33,7 +33,6 @@ TARGET_FILES = [
     "frontend/index.html",
     "frontend/package.json",
     "Dockerfile",
-    "build.sh",
     "README.md",
     ".env.example",
 ]

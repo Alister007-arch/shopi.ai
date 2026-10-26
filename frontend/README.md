@@ -1,16 +1,31 @@
-# React + Vite
+# 🎨 Trovi Storefront Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 19 & Vite 6 frontend client for the **Trovi** conversational commerce platform.
 
-Currently, two official plugins are available:
+## Architecture
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Framework**: React 19, Vite 6
+- **Routing & Code-Splitting**: Route-level dynamic imports with `React.lazy` and `React.Suspense` for heavy portals (`AdminDashboard`, `CustomerProfile`).
+- **Styling**: Vanilla CSS tokens in `index.css` with a high-contrast dark green/moss palette, responsive drawer sheets, and fluid layouts.
+- **Components**:
+  - `Header`: Global sticky navigation, pincode selector, category chips, search bar, and auth shortcuts.
+  - `Catalog`: Multi-category product grids, category filtering, search, pagination, and stock indicators.
+  - `ProductDetailModal`: Modal with high-resolution WebP images, specs, organic certifications, and stock badges.
+  - `CartOrdersDrawer`: Multi-step checkout drawer (Bag -> Shipping -> Payment -> Confirmation) with GST tax invoicing and order history.
+  - `AIChat`: "Ask Trovi" conversational agent interface with two-step cryptographic quote tokens and interactive action cards.
+  - `CustomerProfile`: Order history, real-time tracking, saved delivery addresses, and account controls.
+  - `AdminDashboard`: Admin portal for catalog CRUD, category management, trace logs, and evaluation benchmarks.
 
-## React Compiler
+## Development
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm install
+npm run dev
+```
 
-## Expanding the Oxlint configuration
+## Production Build
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+```bash
+npm run build
+npm run preview
+```

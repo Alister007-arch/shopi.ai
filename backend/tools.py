@@ -771,10 +771,12 @@ def prepare_order_bundle(
     items_json: str,
     target_budget_inr: Optional[float] = None,
     customer_name: str = "Valued Customer",
+    user_id: int = 0,
 ) -> str:
     """
     Parses a multi-product shopping command (e.g. '1kg oats, 500g honey, and two litres milk under ₹800').
     Validates stock, computes subtotals from backend verified prices, checks for budget overruns,
+    returns saved addresses with masked phone numbers for authenticated customers,
     and returns a complete itemized order bundle for explicit user confirmation.
     
     items_json format: [{"query": "oats", "quantity": 1}, {"query": "honey", "quantity": 1}, ...]
@@ -853,6 +855,45 @@ def prepare_order_bundle(
 
     items_summary_str = ", ".join([f"{item['quantity']}x {item['name']}" for item in selected_bundle])
 
+    # Fetch real saved addresses from database with masked phone numbers
+    saved_addresses = []
+    if user_id and int(user_id) > 0:
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, tag, title, name, phone, flat, street, landmark, city, state, pin_code, is_default
+                FROM user_addresses
+                WHERE user_id = ?
+                ORDER BY is_default DESC, id ASC
+            """, (int(user_id),))
+            for r in cursor.fetchall():
+                p_mask = mask_phone_number(r["phone"])
+                street_str = f"{r['flat']}, {r['street']}"
+                if r["landmark"]:
+                    street_str += f", {r['landmark']}"
+                saved_addresses.append({
+                    "id": str(r["id"]),
+                    "address_id": r["id"],
+                    "tag": r["tag"],
+                    "title": r["title"],
+                    "name": r["name"],
+                    "phone": p_mask,
+                    "phone_masked": p_mask,
+                    "flat": r["flat"],
+                    "street": r["street"],
+                    "street_address": street_str,
+                    "landmark": r["landmark"] or "",
+                    "city": r["city"],
+                    "state": r["state"],
+                    "pin_code": r["pin_code"],
+                    "postal_code": r["pin_code"],
+                    "is_default": bool(r["is_default"]),
+                    "formatted": f"{r['name']}, {street_str}, {r['city']}, {r['state']} - {r['pin_code']} (Phone: {p_mask})",
+                })
+        except Exception as e:
+            logger.warning(f"Error fetching saved addresses for user_id={user_id}: {e}")
+
     # Cryptographic Quote Token generation
     quote_data = {}
     if create_cryptographic_quote:
@@ -871,6 +912,7 @@ def prepare_order_bundle(
         "customer_name": customer_name,
         "items": selected_bundle,
         "items_summary": items_summary_str,
+        "saved_addresses": saved_addresses,
         "quote_id": quote_data.get("quote_id"),
         "quote_token": quote_data.get("quote_token"),
         "quote_expires_at": quote_data.get("expires_at"),
@@ -887,8 +929,11 @@ def prepare_order_bundle(
         "overrun_amount_inr": budget_variance_inr,
         "stock_errors": stock_errors,
         "requires_confirmation": True,
-        "message": f"Prepared order bundle totaling ₹{total_inr:,} (${total_usd:.2f}) for {len(selected_bundle)} item(s). Quote: {quote_data.get('quote_id')}."
+        "message": f"Prepared order quote totaling ₹{total_inr:,} for {len(selected_bundle)} item(s). Quote: {quote_data.get('quote_id')}."
     }, indent=2)
+
+
+prepare_order = prepare_order_bundle
 
 
 @tool
@@ -1706,6 +1751,7 @@ LLM_ALLOWED_TOOLS = [
     track_order,
     list_my_orders,
     start_order_action,
+    prepare_order_bundle,
 ]
 
 

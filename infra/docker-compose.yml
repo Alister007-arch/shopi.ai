@@ -1,25 +1,25 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: moss-postgres
+    container_name: trovi-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-moss_db}
-      POSTGRES_USER: ${POSTGRES_USER:-moss_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-moss_secure_password_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-trovi_db}
+      POSTGRES_USER: ${POSTGRES_USER:-trovi_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Error: POSTGRES_PASSWORD environment variable must be set}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-moss_user} -d ${POSTGRES_DB:-moss_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-trovi_user} -d ${POSTGRES_DB:-trovi_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: moss-redis
+    container_name: trovi-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -34,8 +34,8 @@ services:
   backend:
     build:
       context: ..
-      dockerfile: infra/Dockerfile
-    container_name: moss-backend
+      dockerfile: Dockerfile
+    container_name: trovi-backend
     restart: unless-stopped
     depends_on:
       postgres:
@@ -43,7 +43,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-moss_user}:${POSTGRES_PASSWORD:-moss_secure_password_2026}@postgres:5432/${POSTGRES_DB:-moss_db}
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-trovi_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-trovi_db}
       REDIS_URL: redis://redis:6379/0
       PORT: 8000
       ENVIRONMENT: production

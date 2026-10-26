@@ -682,7 +682,7 @@ export default function AdminDashboard({ onClose, onProductUpdated, currentUser:
                     color: '#ffffff',
                   }}
                 >
-                  {metrics?.eval_summary?.passed_count || 60}/{metrics?.eval_summary?.total_count || 60} Evals ({metrics?.eval_summary?.duration_seconds || '1.25'}s) · {metrics?.eval_summary?.llm_mode || 'Mock LLM'}
+                  {metrics?.eval_summary?.passed_count || 60}/{metrics?.eval_summary?.total_count || 60} Evals ({metrics?.eval_summary?.duration_seconds || '1.25'}s) · {metrics?.eval_summary?.llm_mode || 'Deterministic tool and safety suite'}
                 </span>
               </span>
             </div>
@@ -816,46 +816,6 @@ export default function AdminDashboard({ onClose, onProductUpdated, currentUser:
                 </div>
               )}
 
-              {/* Default Admin Credentials Helper */}
-              <div style={{
-                background: 'rgba(28, 48, 36, 0.06)',
-                border: '1px solid var(--moss-border)',
-                borderRadius: 8,
-                padding: '10px 14px',
-                marginBottom: 14,
-                fontSize: '0.82rem',
-                color: 'var(--moss-deep)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 10,
-                textAlign: 'left',
-              }}>
-                <div>
-                  <div style={{ fontWeight: 700 }}>Default Administrator Account:</div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-                    <code style={{ background: '#e2e8e4', padding: '1px 5px', borderRadius: 4 }}>admin@trovi.store</code> · <code style={{ background: '#e2e8e4', padding: '1px 5px', borderRadius: 4 }}>Admin@12345</code>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  id="admin-fill-credentials-btn"
-                  onClick={() => setAdminLoginForm({ email: 'admin@trovi.store', password: 'Admin@12345' })}
-                  style={{
-                    background: 'var(--moss-deep)',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: 6,
-                    padding: '6px 12px',
-                    fontSize: '0.76rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  1-Click Fill
-                </button>
-              </div>
 
               <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14, textAlign: 'left' }}>
                 <div>
@@ -1195,7 +1155,7 @@ export default function AdminDashboard({ onClose, onProductUpdated, currentUser:
                                 textTransform: 'uppercase',
                               }}
                             >
-                              {metrics?.eval_summary?.llm_mode || 'Mock LLM'}
+                              {metrics?.eval_summary?.llm_mode || 'Deterministic tool and safety suite'}
                             </span>
                             <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800 }}>
                               Agent Evaluation Suite Benchmark

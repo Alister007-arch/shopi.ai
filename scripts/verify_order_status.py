@@ -9,7 +9,8 @@ if len(sys.argv) < 3:
 order_number = sys.argv[1]
 expected_status = sys.argv[2]
 
-db_path = os.environ.get("SHOPI_DB_PATH", os.path.join(os.path.dirname(os.path.dirname(__file__)), "shopai.db"))
+repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+db_path = os.environ.get("SHOPI_DB_PATH", os.path.join(repo_root, "backend", "shopai.db"))
 conn = sqlite3.connect(db_path)
 c = conn.cursor()
 c.execute("SELECT status FROM orders WHERE order_number = ?", (order_number,))

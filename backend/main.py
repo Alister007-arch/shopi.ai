@@ -15,12 +15,13 @@ import uuid
 import time
 import logging
 import traceback
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query, Header, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
+import re
 
 import tools
 import vision
@@ -304,6 +305,16 @@ class BillingAddress(BaseModel):
         return ", ".join(parts) if parts else ""
 
 
+def check_pincode_serviceability(pin_str: str) -> tuple[bool, str]:
+    """Validates 6-digit Indian PIN code and check delivery availability."""
+    clean = re.sub(r"\D", "", str(pin_str or ""))
+    if len(clean) != 6:
+        return False, "Please enter a valid 6-digit Indian postal PIN code."
+    if clean.startswith("0") or clean.startswith("99"):
+        return False, "Delivery not available to this PIN"
+    return True, "Serviceable"
+
+
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=1000)
     thread_id: Optional[str] = None
@@ -317,6 +328,7 @@ class CheckoutRequest(BaseModel):
     product_id: int = Field(..., gt=0)
     quantity: Optional[int] = Field(1, ge=1, le=20)
     customer_name: Optional[str] = None
+    address_id: Optional[Union[int, str]] = None
     shipping_address: Optional[ShippingAddress] = None
     idempotency_key: Optional[str] = None
 
@@ -337,6 +349,7 @@ class MergeCartRequest(BaseModel):
 
 class MultiCheckoutRequest(BaseModel):
     items: List[CartItemPayload] = Field(..., min_length=1)
+    address_id: Optional[Union[int, str]] = None
     shipping_address: Optional[ShippingAddress] = None
     billing_address: Optional[BillingAddress] = None
     customer_name: Optional[str] = None
@@ -349,6 +362,17 @@ class MultiCheckoutRequest(BaseModel):
     idempotency_key: Optional[str] = None
     target_budget_inr: Optional[float] = None
     budget_approved: Optional[bool] = False
+    quote_token: Optional[str] = None
+
+
+class ConfirmQuoteOrderRequest(BaseModel):
+    quote_token: str = Field(..., min_length=1)
+    address_id: Optional[Union[int, str]] = None
+    shipping_address: Optional[ShippingAddress] = None
+    billing_address: Optional[BillingAddress] = None
+    customer_name: Optional[str] = None
+    payment_method: Optional[str] = "upi"
+    idempotency_key: Optional[str] = None
 
 
 class PrepareOrderRequest(BaseModel):
@@ -796,16 +820,19 @@ def get_api_me(
 
 
 class UserAddressCreateRequest(BaseModel):
-    tag: str = Field("home", description="home | office | college | other")
-    title: str = Field(..., min_length=2, max_length=100)
+    tag: Optional[str] = Field("home", description="home | office | college | other")
+    title: Optional[str] = Field(None, min_length=2, max_length=100)
     name: str = Field(..., min_length=2, max_length=100)
     phone: str = Field(..., min_length=10, max_length=15)
-    flat: str = Field(..., min_length=2, max_length=250)
-    street: str = Field(..., min_length=2, max_length=250)
+    flat: Optional[str] = Field(None, max_length=250)
+    street: Optional[str] = Field(None, max_length=250)
+    street_address: Optional[str] = Field(None, max_length=250)
     landmark: Optional[str] = None
     city: str = Field("Bengaluru", min_length=2, max_length=100)
     state: str = Field("Karnataka", min_length=2, max_length=100)
-    pin_code: str = Field(..., min_length=6, max_length=6)
+    pin_code: Optional[str] = Field(None, min_length=6, max_length=6)
+    pinCode: Optional[str] = Field(None, min_length=6, max_length=6)
+    postal_code: Optional[str] = Field(None, min_length=6, max_length=6)
     is_default: Optional[bool] = False
 
 
@@ -845,6 +872,27 @@ def add_user_address(
     db: Session = Depends(get_db),
 ):
     """Add a new delivery address for the authenticated user in the database."""
+    pin = req.pin_code or req.pinCode or req.postal_code or ""
+    clean_pin = re.sub(r"\D", "", pin)
+    if len(clean_pin) != 6:
+        raise HTTPException(status_code=422, detail="A valid 6-digit Indian PIN code is required.")
+
+    clean_phone = re.sub(r"\D", "", req.phone or "")
+    if not re.match(r"^[6-9]\d{9}$", clean_phone):
+        raise HTTPException(status_code=422, detail="A valid 10-digit Indian phone number starting with 6-9 is required.")
+
+    serviceable, msg = check_pincode_serviceability(clean_pin)
+    if not serviceable:
+        raise HTTPException(status_code=400, detail="Delivery not available to this PIN")
+
+    flat_val = (req.flat or req.street_address or req.street or "").strip()
+    street_val = (req.street or req.street_address or req.flat or "").strip()
+    if not flat_val and not street_val:
+        raise HTTPException(status_code=422, detail="Street address line is required.")
+
+    title_val = (req.title or f"{(req.tag or 'Home').capitalize()} Address").strip()
+    tag_val = (req.tag or "home").lower().strip()
+
     existing_count = db.query(UserAddress).filter(UserAddress.user_id == current_user.id).count()
     is_first = existing_count == 0
 
@@ -853,16 +901,16 @@ def add_user_address(
 
     new_addr = UserAddress(
         user_id=current_user.id,
-        tag=req.tag.lower().strip(),
-        title=req.title.strip(),
+        tag=tag_val,
+        title=title_val,
         name=req.name.strip(),
-        phone=req.phone.strip(),
-        flat=req.flat.strip(),
-        street=req.street.strip(),
+        phone=clean_phone,
+        flat=flat_val,
+        street=street_val,
         landmark=req.landmark.strip() if req.landmark else None,
         city=req.city.strip(),
         state=req.state.strip(),
-        pin_code=req.pin_code.strip(),
+        pin_code=clean_pin,
         is_default=True if (req.is_default or is_first) else False,
     )
     db.add(new_addr)
@@ -935,7 +983,10 @@ def get_categories():
 
 
 @app.post("/api/order/prepare")
-def prepare_order_endpoint(req: PrepareOrderRequest):
+def prepare_order_endpoint(
+    req: PrepareOrderRequest,
+    current_user: Optional[User] = Depends(get_optional_current_user),
+):
     """One-command multi-item bundle preparation with budget overrun detection."""
     payload = req.items_json
     if not payload and req.items:
@@ -946,9 +997,34 @@ def prepare_order_endpoint(req: PrepareOrderRequest):
     raw_res = tools.prepare_order_bundle.invoke({
         "items_json": payload,
         "target_budget_inr": req.target_budget_inr,
-        "customer_name": req.customer_name or "Valued Customer",
+        "customer_name": current_user.full_name if current_user else (req.customer_name or "Valued Customer"),
+        "user_id": current_user.id if current_user else 0,
     })
     return json.loads(raw_res)
+
+
+@app.get("/api/delivery/check")
+def delivery_check_endpoint(postal_code: str = Query(...)):
+    """Check serviceability and delivery availability for a 6-digit Indian PIN code."""
+    serviceable, msg = check_pincode_serviceability(postal_code)
+    clean = re.sub(r"\D", "", str(postal_code or ""))
+    if not serviceable:
+        return {
+            "status": "unserviceable",
+            "postal_code": clean,
+            "is_serviceable": False,
+            "message": "Delivery not available to this PIN",
+        }
+    is_metro = clean.startswith(("56", "11", "40", "60", "70", "50", "38"))
+    timeline = "1-2 business days (Express available)" if is_metro else "2-3 business days"
+    return {
+        "status": "available",
+        "postal_code": clean,
+        "is_serviceable": True,
+        "estimated_timeline": timeline,
+        "standard_delivery_fee_inr": 50,
+        "message": "Delivery available",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1074,9 +1150,152 @@ def clear_user_cart(
     return {"status": "success", "message": "Cart cleared"}
 
 
+def resolve_and_validate_shipping_address(
+    address_id: Optional[Union[int, str]],
+    shipping_address: Optional[ShippingAddress],
+    current_user: User,
+    db: Session,
+) -> tuple[str, str]:
+    """
+    Resolves shipping address via address_id (preferred, scoped to current_user)
+    or validated ShippingAddress object.
+    Enforces identical validation rules everywhere:
+    - address_id must exist in database and belong to current_user (404/403)
+    - Recipient name, valid 10-digit Indian phone (6-9...), valid 6-digit PIN code
+    - Real delivery serviceability check for PIN code ("Delivery not available to this PIN")
+    - Never uses hardcoded or default dummy addresses.
+    Returns (recipient_name, formatted_address_string).
+    """
+    if address_id is not None:
+        try:
+            addr_id_int = int(address_id)
+        except (ValueError, TypeError):
+            raise HTTPException(status_code=422, detail="Invalid address ID format.")
+
+        user_addr = db.query(UserAddress).filter(UserAddress.id == addr_id_int).first()
+        if not user_addr:
+            raise HTTPException(status_code=404, detail="Address not found.")
+        if user_addr.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Address does not belong to the authenticated user.")
+
+        clean_phone = re.sub(r"\D", "", user_addr.phone or "")
+        clean_pin = re.sub(r"\D", "", user_addr.pin_code or "")
+
+        if not re.match(r"^[6-9]\d{9}$", clean_phone):
+            raise HTTPException(status_code=422, detail="A real, validated shipping address is required (valid 10-digit phone starting 6-9).")
+        if not re.match(r"^\d{6}$", clean_pin):
+            raise HTTPException(status_code=422, detail="A real, validated shipping address is required (valid 6-digit PIN code).")
+
+        serviceable, _ = check_pincode_serviceability(clean_pin)
+        if not serviceable:
+            raise HTTPException(status_code=400, detail="Delivery not available to this PIN")
+
+        street_parts = [p for p in [user_addr.flat, user_addr.street, user_addr.landmark] if p and p.strip()]
+        street_str = ", ".join(street_parts)
+        cust_name = user_addr.name.strip()
+        formatted_address = f"{cust_name}, {street_str}, {user_addr.city.strip()}, {user_addr.state.strip()} - {clean_pin} (Phone: {clean_phone})"
+        return cust_name, formatted_address
+
+    if shipping_address:
+        clean_phone = re.sub(r"\D", "", shipping_address.phone or "")
+        clean_pin = re.sub(r"\D", "", shipping_address.postal_code or "")
+
+        if not re.match(r"^[6-9]\d{9}$", clean_phone):
+            raise HTTPException(status_code=422, detail="A real, validated shipping address is required (valid 10-digit phone starting 6-9).")
+        if not re.match(r"^\d{6}$", clean_pin):
+            raise HTTPException(status_code=422, detail="A real, validated shipping address is required (valid 6-digit PIN code).")
+
+        serviceable, _ = check_pincode_serviceability(clean_pin)
+        if not serviceable:
+            raise HTTPException(status_code=400, detail="Delivery not available to this PIN")
+
+        cust_name = shipping_address.recipient_name.strip()
+        formatted_address = shipping_address.to_formatted_string()
+        return cust_name, formatted_address
+
+    # If neither was explicitly passed, attempt resolving user's default saved address
+    user_addr = db.query(UserAddress).filter(UserAddress.user_id == current_user.id).order_by(UserAddress.is_default.desc(), UserAddress.id.desc()).first()
+    if user_addr:
+        return resolve_and_validate_shipping_address(user_addr.id, None, current_user, db)
+
+    raise HTTPException(
+        status_code=422,
+        detail="A real, validated shipping address is required to place an order (name, 10-digit phone, 6-digit PIN, address, city, state)."
+    )
+
+
 # ---------------------------------------------------------------------------
 # Order Checkout & Lifecycle Endpoints
 # ---------------------------------------------------------------------------
+
+@app.post("/api/order/confirm")
+def confirm_quote_order_endpoint(
+    req: ConfirmQuoteOrderRequest,
+    idempotency_key_header: Optional[str] = Header(None, alias="Idempotency-Key"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Dedicated backend confirmation endpoint triggered by user's Confirm button for AI quote orders.
+    Verifies HMAC-signed, single-use, time-limited quote token, authenticated user,
+    shipping address, and Idempotency-Key header.
+    """
+    idemp_key = idempotency_key_header or req.idempotency_key
+    if not idemp_key or not idemp_key.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Idempotency-Key header is required for confirming orders."
+        )
+
+    # 1. Verify cryptographic quote token
+    from backend.app.agent.quote import verify_cryptographic_quote
+    q_verify = verify_cryptographic_quote(req.quote_token)
+    if not q_verify.get("valid"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Quote verification failed: {q_verify.get('reason')}"
+        )
+
+    # 2. Resolve & validate real shipping address
+    cust_name, cust_address = resolve_and_validate_shipping_address(
+        address_id=req.address_id,
+        shipping_address=req.shipping_address,
+        current_user=current_user,
+        db=db,
+    )
+
+    items = q_verify.get("items", [])
+    raw_res = tools.confirm_and_place_order.invoke({
+        "items_json": json.dumps(items),
+        "customer_name": cust_name,
+        "customer_address": cust_address,
+        "customer_email": current_user.email,
+        "idempotency_key": idemp_key.strip(),
+        "quote_token": req.quote_token,
+        "target_budget_inr": q_verify.get("target_budget_inr"),
+        "budget_approved": True,
+        "payment_method": req.payment_method or "UPI / QR",
+        "user_id": current_user.id,
+    })
+    res_data = json.loads(raw_res)
+    if res_data.get("status") == "error":
+        raise HTTPException(status_code=400, detail=res_data.get("message", "Checkout failed"))
+
+    # Multi-channel notification dispatch
+    from backend.app.notifications import send_order_confirmation_notification
+    try:
+        send_order_confirmation_notification({
+            "order_number": res_data.get("order_number"),
+            "customer_name": cust_name,
+            "customer_email": current_user.email,
+            "customer_address": cust_address,
+            "total_price_inr": res_data.get("total_price_inr", 0),
+        })
+    except Exception as e:
+        logger.warning(f"Notification dispatch notice: {e}")
+
+    return res_data
+
 
 @app.post("/api/order/checkout")
 def multi_checkout_endpoint(
@@ -1092,15 +1311,20 @@ def multi_checkout_endpoint(
     """
     idemp_key = idempotency_key_header or req.idempotency_key
 
-    # Enforce real, validated shipping address
-    if not req.shipping_address:
-        raise HTTPException(
-            status_code=422,
-            detail="A real, validated shipping address is required to place an order (name, 10-digit phone, 6-digit PIN, address, city, state)."
-        )
+    # If quote_token supplied, verify HMAC signature, single use, and expiry
+    if req.quote_token:
+        from backend.app.agent.quote import verify_cryptographic_quote
+        q_verify = verify_cryptographic_quote(req.quote_token)
+        if not q_verify.get("valid"):
+            raise HTTPException(status_code=400, detail=f"Quote verification failed: {q_verify.get('reason')}")
 
-    cust_name = req.shipping_address.recipient_name.strip()
-    cust_address = req.shipping_address.to_formatted_string()
+    # Enforce real, validated shipping address
+    cust_name, cust_address = resolve_and_validate_shipping_address(
+        address_id=req.address_id,
+        shipping_address=req.shipping_address,
+        current_user=current_user,
+        db=db,
+    )
     cust_email = current_user.email
     user_id = current_user.id
 
@@ -1126,6 +1350,7 @@ def multi_checkout_endpoint(
         "customer_address": cust_address,
         "customer_email": cust_email,
         "idempotency_key": idemp_key,
+        "quote_token": req.quote_token,
         "target_budget_inr": req.target_budget_inr,
         "budget_approved": req.budget_approved or False,
         "payment_method": payment_method_str,
@@ -1167,18 +1392,17 @@ def legacy_checkout(
     req: CheckoutRequest,
     idempotency_key_header: Optional[str] = Header(None, alias="Idempotency-Key"),
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     """Single item checkout endpoint for quick buying. Requires authenticated user."""
     idemp_key = idempotency_key_header or req.idempotency_key
 
-    if req.shipping_address:
-        cust_name = req.shipping_address.recipient_name.strip()
-        cust_address = req.shipping_address.to_formatted_string()
-    else:
-        raise HTTPException(
-            status_code=422,
-            detail="A real, validated shipping address is required (name, phone, pin, address, city, state)."
-        )
+    cust_name, cust_address = resolve_and_validate_shipping_address(
+        address_id=req.address_id,
+        shipping_address=req.shipping_address,
+        current_user=current_user,
+        db=db,
+    )
 
     raw_res = tools.confirm_and_place_order.invoke({
         "items_json": json.dumps([{"product_id": req.product_id, "quantity": req.quantity or 1}]),

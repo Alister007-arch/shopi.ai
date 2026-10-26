@@ -44,15 +44,17 @@ If you do not have terminal access to the production container:
 3. Click on the **Environment** tab in the left sidebar.
 4. Locate `ADMIN_PASSWORD` (or click **Add Environment Variable** if not present).
 5. Enter your new strong administrator password.
-6. Click **Save Changes**.
-7. Render will trigger an automatic redeploy. On startup, `seed_database()` detects the updated environment variable and updates the administrator password hash in the database.
-8. *(Recommended)* Once rotated in a persistent database (Postgres or persistent disk), you can remove `ADMIN_PASSWORD` from Render environment variables to minimize credential footprint.
+6. Set or add the environment variable `ADMIN_PASSWORD_RESET=true` (required: existing administrator passwords are never overwritten on startup unless this explicit reset flag is enabled).
+7. Click **Save Changes**.
+8. Render will trigger an automatic redeploy. On startup, `seed_database()` detects the updated environment variables and updates the administrator password hash in the database.
+9. *(Recommended)* Once rotated in a persistent database (Postgres or persistent disk), remove `ADMIN_PASSWORD_RESET` (or set it to `false`) and remove `ADMIN_PASSWORD` from Render environment variables to minimize credential footprint.
 
 ---
 
 ## 3. Demo Accounts & Production Guardrails
 
 To prevent test accounts from exposing production instances:
+- The initial administrator account is created or synchronized **ONLY** from `ADMIN_EMAIL` and `ADMIN_PASSWORD`. If they are not configured, admin creation is skipped and a warning is logged (there are zero hardcoded default credentials in every environment).
 - Demo accounts (`admin@moss.internal`, `shopper@moss.internal`) are **only created** if BOTH of the following conditions are met:
   1. `ENVIRONMENT` / `APP_ENV` is set to `development` or `dev`.
   2. `DEMO_MODE=true` is explicitly configured.
@@ -62,7 +64,7 @@ To prevent test accounts from exposing production instances:
 
 > [!CAUTION]
 > **Compromised Git History Notice:**
-> The old demo passwords remain visible in git history and must be treated as compromised (change them everywhere they were used). Never reuse former default passwords (`Admin@123456`, `Shopper@123456`, etc.) across any internal, staging, or production service.
+> The old demo passwords remain visible in git history and must be treated as compromised (change them everywhere they were used). Never reuse former default passwords (`Admin@123456`, `Shopper@123456`, `Admin@12345`, etc.) across any internal, staging, or production service. All former default credentials in git history are compromised and invalid.
 
 ---
 
@@ -82,6 +84,7 @@ To configure environment variables for your Trovi deployment in Render:
 | `JWT_SECRET_KEY` | *(Random 64-char string)* | Cryptographically signs authentication tokens |
 | `ADMIN_EMAIL` | `admin@yourdomain.com` | Initial admin email address |
 | `ADMIN_PASSWORD` | *(Strong unique password)* | Initial admin password (hashed on startup) |
+| `ADMIN_PASSWORD_RESET` | `false` | Explicit flag required to reset existing admin password (`true`/`false`) |
 | `SHOPI_DB_PATH` | `/data/shopai.db` | Persistent disk mount path for SQLite |
 | `DATABASE_URL` | *(Postgres connection URL)* | Managed PostgreSQL instance URL (if using PG) |
 | `CORS_ORIGINS` | `https://your-frontend.onrender.com` | Restricts allowed API origins |

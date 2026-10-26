@@ -148,9 +148,8 @@ docker run -p 8000:8000 \
 ```
 
 ### PaaS Deployment (Render / Railway)
-- **Root Directory**: `.`
-- **Build Command**: `./build.sh` (installs backend packages, runs Vite build, seeds DB)
-- **Start Command**: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+- **Deployment Type**: Docker (`Dockerfile`)
+- **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
 
 ---
 

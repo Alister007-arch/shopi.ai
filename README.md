@@ -56,6 +56,7 @@ Configure the following variables in your local `.env` (copy from `.env.example`
 | `DEMO_MODE` | Enables demo account seeding in development mode only (`true` / `false`) |
 | `ADMIN_EMAIL` | Initial administrator email address |
 | `ADMIN_PASSWORD` | Initial administrator password (hashed on startup) |
+| `ADMIN_PASSWORD_RESET` | Set to `true` to overwrite an existing admin password on startup (default `false`) |
 | `SHOPI_DB_PATH` | Path to SQLite database file |
 | `DATABASE_URL` | PostgreSQL connection URL (optional alternative to SQLite) |
 | `PORT` | Server listening port |
@@ -125,9 +126,11 @@ cd frontend && npm run build
 ## 🔒 Security
 
 Trovi enforces strict credential isolation and security best practices:
-- **No Hardcoded Passwords**: All passwords and secrets are strictly loaded from environment variables or dynamically generated.
+- **No Hardcoded Passwords**: All administrator accounts are created strictly from `ADMIN_EMAIL` and `ADMIN_PASSWORD`. If missing, admin creation is skipped with a warning; no default credentials are ever provisioned in any environment.
+- **Protected Admin Passwords**: Existing administrator passwords are never overwritten on startup unless `ADMIN_PASSWORD_RESET=true` is explicitly configured.
 - **Live Admin Rotation**: Use `scripts/create_admin.py` or the Render Dashboard to rotate administrator credentials.
 - **Production Guardrails**: Demo accounts are blocked from production creation, with startup alerts for known legacy accounts.
+- **Compromised Git History**: Former default/demo passwords in git history are compromised and invalid. Never reuse them.
 - **Automated CI Scanning**: Every pull request and push is checked by TruffleHog secret scanning.
 
 For comprehensive security architecture, password rotation runbooks, and production Render configuration, refer to:
@@ -142,3 +145,4 @@ For comprehensive security architecture, password rotation runbooks, and product
 - 🚀 [Render Deployment Guide](docs/deploy-render.md)
 - 🛠️ [Production Operations Runbook](docs/runbook.md)
 - 📋 [Order Action Service Specification](docs/order-actions.md)
+- 📜 [Assets & Typography Licenses](docs/assets-and-licenses.md)

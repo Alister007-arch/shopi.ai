@@ -219,10 +219,21 @@ class TestTroviV3AcceptanceSuite(unittest.TestCase):
         self.assertEqual(len(res1["product_cards"]), 1)
         self.assertEqual(res1["product_cards"][0]["id"], 53)
 
-        # Explicit confirmation places the order safely
+        # Explicit confirmation via chat safely directs to interactive Confirm button
         res2 = graph.run_offline_fallback("yes confirm order", thread_id="sess_test_milk", is_authenticated=True, customer_email="shopper@trovi.internal")
-        self.assertTrue("confirmed" in res2["reply"].lower() or "placed" in res2["reply"].lower() or "ord-2026" in res2["reply"].lower())
-        self.assertIsNotNone(res2.get("placed_order"))
+        self.assertIsNone(res2.get("placed_order"))
+        self.assertTrue("confirm" in res2["reply"].lower() or "button" in res2["reply"].lower() or "action card" in res2["reply"].lower())
+        # Execution is completed via backend confirmation
+        placed_raw = tools.confirm_and_place_order.invoke({
+            "items_json": json.dumps(res2["order_bundle"]["items"]),
+            "customer_name": "Shopper",
+            "customer_email": "shopper@trovi.internal",
+            "customer_address": "Indiranagar, Bengaluru - 560001",
+            "idempotency_key": "idemp_test_suite_milk",
+        })
+        placed = json.loads(placed_raw)
+        self.assertEqual(placed.get("status"), "success")
+        self.assertIsNotNone(placed.get("order_number"))
 
     # 12. Luxury Items Collection and Instant Order Verification
     def test_luxury_items_inventory_and_order(self):
@@ -243,10 +254,21 @@ class TestTroviV3AcceptanceSuite(unittest.TestCase):
         self.assertEqual(len(res1["product_cards"]), 1)
         self.assertEqual(res1["product_cards"][0]["id"], 71)
 
-        # Explicit confirmation
+        # Explicit confirmation in chat directs to interactive Confirm button
         res2 = graph.run_offline_fallback("yes confirm order", thread_id="sess_test_sony", is_authenticated=True, customer_email="shopper@trovi.internal")
-        self.assertTrue("confirmed" in res2["reply"].lower() or "placed" in res2["reply"].lower() or "ord-2026" in res2["reply"].lower())
-        self.assertIsNotNone(res2.get("placed_order"))
+        self.assertIsNone(res2.get("placed_order"))
+        self.assertTrue("confirm" in res2["reply"].lower() or "button" in res2["reply"].lower() or "action card" in res2["reply"].lower())
+        # Execution is completed via backend confirmation
+        placed_raw = tools.confirm_and_place_order.invoke({
+            "items_json": json.dumps(res2["order_bundle"]["items"]),
+            "customer_name": "Shopper",
+            "customer_email": "shopper@trovi.internal",
+            "customer_address": "Indiranagar, Bengaluru - 560001",
+            "idempotency_key": "idemp_test_suite_sony",
+        })
+        placed = json.loads(placed_raw)
+        self.assertEqual(placed.get("status"), "success")
+        self.assertIsNotNone(placed.get("order_number"))
 
 if __name__ == "__main__":
     unittest.main()

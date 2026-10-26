@@ -192,7 +192,7 @@ def test_agent_refuses_order_for_guest_and_succeeds_for_signed_in_user(client: T
     assert u1_data.get("placed_order") is None  # Two-step: quote must be confirmed first
     assert u1_data.get("order_bundle") is not None
 
-    # 4. Authenticated user confirms order explicitly
+    # 4. Authenticated user typing confirm in chat does NOT place order directly
     user_chat_2 = client.post("/api/chat", json={
         "message": "Yes confirm order",
         "thread_id": "auth_thread_202",
@@ -200,8 +200,25 @@ def test_agent_refuses_order_for_guest_and_succeeds_for_signed_in_user(client: T
     }, headers=user_headers)
     assert user_chat_2.status_code == 200
     u2_data = user_chat_2.json()
-    assert u2_data.get("placed_order") is not None
-    assert u2_data["placed_order"].get("order_number") is not None
+    assert u2_data.get("placed_order") is None
+
+    # 5. User clicks Confirm button triggering backend confirmation endpoint
+    bundle_items = u1_data["order_bundle"]["items"]
+    checkout_res = client.post("/api/order/checkout", json={
+        "items": [{"product_id": it["product_id"], "quantity": it["quantity"]} for it in bundle_items],
+        "shipping_address": {
+            "recipient_name": "Agent Shopper",
+            "phone": "9845012345",
+            "street_address": "Flat 402, Green Park Avenue",
+            "city": "Bengaluru",
+            "state": "Karnataka",
+            "postal_code": "560038",
+        },
+        "quote_token": u1_data["order_bundle"].get("quote_token"),
+    }, headers={**user_headers, "Idempotency-Key": "idemp_auth_shopper_confirm"})
+    assert checkout_res.status_code == 200
+    order_data = checkout_res.json()
+    assert order_data.get("order_number") is not None
 
 
 def test_session_security_and_refresh_flow(client: TestClient):

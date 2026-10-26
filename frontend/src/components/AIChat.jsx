@@ -427,20 +427,30 @@ export default function AIChat({
       const idempotencyKey = `idemp_bundle_${threadId}_${Date.now()}`;
       const token = localStorage.getItem('moss_auth_token');
 
-      const res = await fetch(`${API_BASE}/api/order/checkout`, {
+      const endpoint = bundle.quote_token ? `${API_BASE}/api/order/confirm` : `${API_BASE}/api/order/checkout`;
+      const requestPayload = bundle.quote_token
+        ? {
+            quote_token: bundle.quote_token,
+            customer_name: currentUser?.full_name || bundle.customer_name || 'Online Shopper',
+            idempotency_key: idempotencyKey,
+          }
+        : {
+            items: itemsPayload,
+            customer_name: currentUser?.full_name || bundle.customer_name || 'Online Shopper',
+            idempotency_key: idempotencyKey,
+            target_budget_inr: bundle.total_inr || undefined,
+            budget_approved: true,
+            quote_token: bundle.quote_token || undefined,
+          };
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Idempotency-Key': idempotencyKey,
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({
-          items: itemsPayload,
-          customer_name: currentUser?.full_name || bundle.customer_name || 'Online Shopper',
-          idempotency_key: idempotencyKey,
-          target_budget_inr: bundle.total_inr || undefined,
-          budget_approved: true,
-        }),
+        body: JSON.stringify(requestPayload),
       });
 
       if (res.status === 401) {

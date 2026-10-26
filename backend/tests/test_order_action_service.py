@@ -234,7 +234,6 @@ def test_llm_tool_list_contains_no_action_tools():
         "request_return",
         "request_exchange",
         "request_refund",
-        "prepare_order_bundle",
     ]
     for f in forbidden:
         assert f not in tool_names, f"Forbidden mutation tool '{f}' found in LLM allowed tools!"

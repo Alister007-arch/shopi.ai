@@ -136,3 +136,54 @@ def test_prompt_injection_safety_refusal():
         res = graph.run_offline_fallback(message=p, thread_id="adversarial_test")
         # An order must NEVER be placed by prompt injection
         assert res.get("placed_order") is None, f"Prompt injection triggered placed_order for prompt: {p}"
+
+
+def test_no_hardcoded_passwords_or_demo_credentials():
+    """
+    Scans repository source directories (backend, frontend/src, scripts, docs)
+    to verify that no hardcoded password literals or active demo credentials exist.
+    """
+    import os
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+    forbidden_literals = [
+        "Admin@12345",
+        "admin@trovi.store",
+        "default_admin_pw",
+        "Admin@123456",
+        "Shopper@123456",
+    ]
+
+    target_dirs = [
+        os.path.join(repo_root, "backend"),
+        os.path.join(repo_root, "frontend", "src"),
+        os.path.join(repo_root, "scripts"),
+        os.path.join(repo_root, "docs"),
+    ]
+
+    violations = []
+    for target_dir in target_dirs:
+        for root, dirs, files in os.walk(target_dir):
+            dirs[:] = [d for d in dirs if d not in ("__pycache__", "node_modules", ".pytest_cache", ".git")]
+            for file in files:
+                if file.endswith((".py", ".jsx", ".js", ".json", ".md", ".yml", ".yaml", ".ts", ".tsx")):
+                    file_path = os.path.join(root, file)
+                    if os.path.abspath(file_path) == os.path.abspath(__file__):
+                        continue
+
+                    try:
+                        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                            lines = f.readlines()
+                    except Exception:
+                        continue
+
+                    for line_idx, line in enumerate(lines, 1):
+                        for forbidden in forbidden_literals:
+                            if forbidden in line:
+                                # Allow documentation noting that historical passwords are compromised
+                                if file.endswith(".md") and "compromised" in line.lower():
+                                    continue
+                                violations.append(f"{os.path.relpath(file_path, repo_root)}:{line_idx}: contains forbidden credential literal '{forbidden}'")
+
+    assert not violations, "Found hardcoded password or demo credential literals:\n" + "\n".join(violations)
+

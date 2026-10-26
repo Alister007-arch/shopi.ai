@@ -37,7 +37,7 @@ class ProductCreateRequest(BaseModel):
     price_inr: int = Field(..., gt=0, description="Price in Indian Rupees (must be positive)")
     stock: int = Field(10, ge=0, description="Initial inventory count")
     description: Optional[str] = Field(None, max_length=2000)
-    image_url: Optional[str] = "/products/prod_01.jpg"
+    image_url: Optional[str] = "/products/prod_01.webp"
     is_organic: Optional[bool] = False
     attributes: Optional[Dict[str, Any]] = None
     specifications: Optional[str] = None
@@ -114,17 +114,15 @@ def get_store_metrics():
 
     # 5. Read real eval benchmark results from latest eval run
     eval_report_path = os.path.join(os.path.dirname(__file__), "..", "..", "..", "evals", "latest_eval_report.json")
-    groq_key = os.environ.get("GROQ_API_KEY", "").strip()
-    is_live = bool(groq_key and not groq_key.startswith("mock") and not groq_key.startswith("test"))
-    llm_mode = "Live LLM (Groq Llama-3.3-70b)" if is_live else "Mock LLM"
+    default_llm_mode = "Deterministic tool and safety suite"
 
     eval_summary = {
         "passed_count": 60,
         "total_count": 60,
         "pass_pct": 100.0,
         "duration_seconds": 1.25,
-        "is_mock_llm": not is_live,
-        "llm_mode": llm_mode,
+        "is_mock_llm": True,
+        "llm_mode": default_llm_mode,
     }
 
     if os.path.exists(eval_report_path):
@@ -240,7 +238,7 @@ def create_catalog_product(req: ProductCreateRequest):
         req.price_inr,
         req.stock,
         req.description.strip() if req.description else "",
-        req.image_url or "/products/prod_01.jpg",
+        req.image_url or "/products/prod_01.webp",
         1 if req.is_organic else 0,
         attrs_str,
         req.specifications.strip() if req.specifications else "",
@@ -374,7 +372,7 @@ async def import_catalog_csv(
         except Exception:
             stock = 10
         desc = row.get("description", "").strip()
-        img = row.get("image_url", "/products/prod_01.jpg").strip() or "/products/prod_01.jpg"
+        img = row.get("image_url", "/products/prod_01.webp").strip() or "/products/prod_01.webp"
         is_org_str = str(row.get("is_organic", "")).lower().strip()
         is_organic = 1 if is_org_str in ("1", "true", "yes", "t") else 0
 
